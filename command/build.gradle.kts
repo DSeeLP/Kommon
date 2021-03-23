@@ -1,4 +1,5 @@
 plugins {
+    `maven-publish`
     kotlin("jvm")
     id("com.github.johnrengelman.shadow")
 }
