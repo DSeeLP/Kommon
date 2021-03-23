@@ -24,8 +24,25 @@ tasks {
     }
 }
 
+val sourcesJar by tasks.registering(Jar::class) {
+    classifier = "sources"
+    from(sourceSets.main.get().allSource)
+}
+
 tasks {
     build {
         dependsOn(shadowJar)
+    }
+}
+
+publishing {
+    repositories {
+        mavenLocal()
+    }
+    publications {
+        register("mavenKotlin", MavenPublication::class) {
+            from(components["kotlin"])
+            artifact(sourcesJar.get())
+        }
     }
 }
