@@ -34,7 +34,7 @@ class CommandDispatcher {
         return null
     }
 
-    fun <T : Any> recursiveParse(
+    private fun <T : Any> recursiveParse(
         parent: CommandNode<T>,
         args: Array<String>,
         currentResult: ParsedResult<T>
@@ -42,35 +42,26 @@ class CommandDispatcher {
         if (args.isEmpty()) return currentResult.copy(node = parent)
 
         val copiedArgs = if (args.size > 1) args.copyOfRange(1, args.size) else arrayOf()
-        val parseArgs = parseArgs(parent, args) ?: return currentResult.copy(
-            failed = true,
-            cause = ParsedResult.FailureCause.USAGE
-        )
-        if (parseArgs.first.isEmpty()) {
-            return copy(currentResult, parseArgs.second).copy(node = parent)
-        }
-        val currentArg = parseArgs.first[0]
+        val currentArg = args[0]
+
         //val child = getNode(currentArg, true, parent)
         //child?.let { return recursiveParse(it as CommandNode<T>, copiedArgs, currentResult) }
         for (child in parent.childs) {
-            val parseArgs1 = parseArgs(child, parseArgs.first) ?: return currentResult.copy(
-                failed = true,
-                cause = ParsedResult.FailureCause.USAGE
-            )
-            val endArgs = if (parseArgs1.second.isEmpty()) copiedArgs else parseArgs1.first
+
+            val endArgs = copiedArgs
             if (child.name?.equals(currentArg, child.ignoreCase) == true)
                 return recursiveParse(
-                child.target ?: child,
-                endArgs,
-                copy(currentResult, parseArgs.second+parseArgs1.second)
-            )
+                    child.target ?: child,
+                    endArgs,
+                    currentResult.copy(node = child)
+                )
             for (alias in child.aliases) {
                 if (alias.equals(currentArg, child.ignoreCase))
                     return recursiveParse(
-                    child.target ?: child,
-                    endArgs,
-                    copy(currentResult, parseArgs.second+parseArgs1.second)
-                )
+                        child.target ?: child,
+                        endArgs,
+                        currentResult.copy(node = child)
+                    )
             }
             val idArg = child.argumentIdentifier
             val value = idArg?.get(currentArg) ?: continue
@@ -79,11 +70,12 @@ class CommandDispatcher {
                 child.target ?: child,
                 endArgs,
                 copy(
-                    currentResult,
-                    parseArgs.second+parseArgs1.second + (idArg.name to ParsedArgument(idArg.name, idArg.optional, value))
+                    currentResult, mapOf(idArg.name to ParsedArgument(idArg.name, idArg.optional, value))
                 )
             )
         }
+        val parseArgs = parseArgs(parent, args)
+        if (parseArgs.ok && parseArgs.noArg && parent.arguments.isNotEmpty()) return currentResult.copy(node = parent)
         return currentResult.copy(failed = true, cause = ParsedResult.FailureCause.USAGE)
     }
 
@@ -108,10 +100,41 @@ class CommandDispatcher {
         )
     }
 
-    fun <T : Any> parseArgs(
+    private data class ParseArgsResult(
+        val ok: Boolean,
+        val newArgs: Array<String> = arrayOf(),
+        val parsed: Map<String, ParsedArgument<*>> = mapOf(),
+        val failedArg: Boolean = false,
+        val usage: Boolean = false,
+        val noArg: Boolean = false
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as ParseArgsResult
+
+            if (ok != other.ok) return false
+            if (!newArgs.contentEquals(other.newArgs)) return false
+            if (parsed != other.parsed) return false
+            if (failedArg != other.failedArg) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = ok.hashCode()
+            result = 31 * result + newArgs.contentHashCode()
+            result = 31 * result + parsed.hashCode()
+            result = 31 * result + failedArg.hashCode()
+            return result
+        }
+    }
+
+    private fun <T : Any> parseArgs(
         node: CommandNode<T>,
         args: Array<String>
-    ): Pair<Array<String>, Map<String, ParsedArgument<*>>>? {
+    ): ParseArgsResult {
         val parsed = mutableListOf<ParsedArgument<*>>()
         val nArgs = node.arguments
         var usedIndex = -1
@@ -127,24 +150,24 @@ class CommandDispatcher {
             } else {
                 if (arg.optional) continue
                 //TODO: Error Handling
-                return null
+                return ParseArgsResult(false, usage = true)
             }
 
         }
         if (usedIndex != nArgs.lastIndex) {
             for (index in (if (usedIndex == -1) 0 else usedIndex)..nArgs.lastIndex) {
-                if (!nArgs[index].optional) return null
+                if (!nArgs[index].optional) return ParseArgsResult(false, failedArg = true)
             }
         }
 
-        if (usedIndex == -1) return (args.toMutableList().apply { removeFirst() }.toTypedArray()) to parsed.map { it.name to it }.toMap()
+        if (usedIndex == -1) return ParseArgsResult(true, noArg = true)
 
         val data = if (args.isNotEmpty() && usedIndex > -1)
-            args.copyOfRange(usedIndex+1, args.lastIndex+1)
+            args.copyOfRange(usedIndex + 1, args.lastIndex + 1)
         else
             arrayOf()
 
-        return data to parsed.map { it.name to it }.toMap()
+        return ParseArgsResult(true, data, parsed.map { it.name to it }.toMap())
     }
 
     private fun parseRaw(value: String): Array<String> {
@@ -178,4 +201,36 @@ class CommandDispatcher {
         if (inS) splitted.add(raw.substring(0 until raw.lastIndex))
         return splitted.toTypedArray()
     }
+}
+
+fun main() {
+    val dispatcher = CommandDispatcher()
+
+    dispatcher.register<String>("test") {
+        execute { "RootNode" }
+        node("sub") {
+            execute {
+                println("SubNode 1")
+            }
+        }
+
+        argument(IntArgument("intArg1")) {
+            execute {
+                println("Int Arg1")
+            }
+        }
+
+        node("optional") {
+            argument(BooleanArgument("boolArg1"))
+            argument(BooleanArgument("boolArg2"))
+
+            execute {
+                println("Optional")
+            }
+        }
+    }
+
+    val parsed = dispatcher.parse<String>("test optional true false")
+    parsed?.execute("TestSender")
+    println(parsed)
 }
