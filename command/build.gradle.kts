@@ -9,7 +9,6 @@ val coroutinesVersion: String by project
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
-    implementation("com.google.code.gson:gson:2.8.6")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
 }
 
