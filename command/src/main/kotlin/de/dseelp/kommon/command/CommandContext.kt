@@ -19,7 +19,24 @@ data class CommandContext<T : Any>(
     inline fun <reified T> optional(key: String): T? {
         if (!args.containsKey(key)) throw IllegalArgumentException("An argument with the name $key doesn't exist")
         val value = args[key]!!
-        if (value.value is T?) return value.value
+        if (value.value == null) return null
+        if (value.value is T) return value.value
         throw IllegalArgumentException("$key is not of the type ${T::class.simpleName}")
+    }
+
+    fun <T> get(key: String, type: Class<T>): T {
+        if (!args.containsKey(key)) throw IllegalArgumentException("An argument with the name $key doesn't exist")
+        val value = args[key]!!
+        if (value.optional) throw IllegalArgumentException("$key is optional use optional(key: String) instead")
+        if (type == value.value!!::class.java) return value.value as T
+        throw IllegalArgumentException("$key is not of the type ${type.simpleName}")
+    }
+
+    fun <T> optional(key: String, type: Class<T>): T? {
+        if (!args.containsKey(key)) throw IllegalArgumentException("An argument with the name $key doesn't exist")
+        val value = args[key]!!
+        if (value.value == null) return null
+        if (type == value.value::class.java) return value.value as T
+        throw IllegalArgumentException("$key is not of the type ${type.simpleName}")
     }
 }

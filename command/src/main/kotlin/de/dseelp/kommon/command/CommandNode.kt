@@ -9,7 +9,6 @@ data class CommandNode<T: Any>(
     val target: CommandNode<T>? = null,
     val arguments: Array<Argument<*>> = arrayOf(),
     val childs: Array<CommandNode<T>> = arrayOf(),
-    val parent: CommandNode<T>? = null,
     val executor: (CommandContext<T>.() -> Unit)?,
     val ignoreCase: Boolean = true
 ) {

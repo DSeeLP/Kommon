@@ -1,5 +1,5 @@
-val defaultGroupName="de.dseelp.kommon"
-val defaultVersion="0.0.2"
+val defaultGroupName = "de.dseelp.kommon"
+val defaultVersion = "0.0.3"
 
 group = defaultGroupName
 version = defaultVersion

@@ -1,8 +1,7 @@
 package de.dseelp.kommon.command
 
-import de.dseelp.kommon.command.arguments.BooleanArgument
-import de.dseelp.kommon.command.arguments.IntArgument
 import de.dseelp.kommon.command.arguments.ParsedArgument
+import de.dseelp.kommon.command.arguments.StringArgument
 
 class CommandDispatcher {
     private val nodes = mutableListOf<CommandNode<*>>()
@@ -76,6 +75,7 @@ class CommandDispatcher {
         }
         val parseArgs = parseArgs(parent, args)
         if (parseArgs.ok && parseArgs.noArg && parent.arguments.isNotEmpty()) return currentResult.copy(node = parent)
+        if (parent.executor != null) return currentResult.copy(node = parent)
         return currentResult.copy(failed = true, cause = ParsedResult.FailureCause.USAGE)
     }
 
@@ -99,6 +99,8 @@ class CommandDispatcher {
             )
         )
     }
+
+    fun <T : Any> parse(command: String, type: Class<T>) = parse<T>(command)
 
     private data class ParseArgsResult(
         val ok: Boolean,
@@ -206,31 +208,24 @@ class CommandDispatcher {
 fun main() {
     val dispatcher = CommandDispatcher()
 
-    dispatcher.register<String>("test") {
-        execute { "RootNode" }
-        node("sub") {
-            execute {
-                println("SubNode 1")
-            }
-        }
-
-        argument(IntArgument("intArg1")) {
-            execute {
-                println("Int Arg1")
-            }
-        }
-
-        node("optional") {
-            argument(BooleanArgument("boolArg1"))
-            argument(BooleanArgument("boolArg2"))
-
-            execute {
-                println("Optional")
+    command<String>("foo") {
+        execute { println("Foo") }
+        node("test") {
+            execute { println("Hallo") }
+            argument(StringArgument("test")) {
+                execute {
+                    println(get<String>("test"))
+                }
+                node("string") {
+                    execute {
+                        println("String called with arg: " + get<String>("test"))
+                    }
+                }
             }
         }
     }
 
-    val parsed = dispatcher.parse<String>("test optional true false")
+    val parsed = dispatcher.parse<String>("foo test bareee foo2")
     parsed?.execute("TestSender")
     println(parsed)
 }
