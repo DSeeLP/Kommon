@@ -5,13 +5,13 @@
 ```kotlin
     command<String>("foo") {
         execute { println("Foo") }
-        node("bar") {
+        literal("bar") {
             execute { println("Bar") }
             argument(StringArgument("test")) {
                 execute {
                     println(get<String>("test"))
                 }
-                node("string") {
+                literal("string") {
                     execute {
                         println("String called with arg: " + get<String>("test"))
                     }
@@ -25,14 +25,14 @@
 
 ```java
 nodeBuilder("foo", String.class)
-            .node(
-                    nodeBuilder("bar", String.class)
+            .then(
+                    literal("bar", String.class)
                             .execute(context -> System.out.println("Bar"))
-                            .node(
+                            .then(
                                     argumentBuilder(stringArgument("test"), String.class)
                                             .execute(context -> System.out.println(context.get("test", String.class)))
                                             .node(
-                                                    nodeBuilder("string", String.class)
+                                                    literal("string", String.class)
                                                             .execute(context -> System.out.println("String called with arg: " + context.get("test", String.class)))
                                             )
                             )
