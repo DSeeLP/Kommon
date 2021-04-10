@@ -31,7 +31,7 @@ nodeBuilder("foo", String.class)
                             .then(
                                     argumentBuilder(stringArgument("test"), String.class)
                                             .execute(context -> System.out.println(context.get("test", String.class)))
-                                            .node(
+                                            .then(
                                                     literal("string", String.class)
                                                             .execute(context -> System.out.println("String called with arg: " + context.get("test", String.class)))
                                             )
