@@ -3,29 +3,35 @@ package de.dseelp.kommon.command;
 import de.dseelp.kommon.command.arguments.*;
 
 public class JavaBuilderConstants {
-    public static <T> JavaCommandBuilder<T> nodeBuilder(String name, String[] aliases, Class<T> type) {
-        return new JavaCommandBuilder<T>(name, aliases);
+    public static <S> JavaCommandBuilder<S> literal(String name, String[] aliases, Class<S> type) {
+        return new JavaCommandBuilder<>(name, aliases);
     }
 
-    public static <T> JavaCommandBuilder<T> nodeBuilder(String name, Class<T> type) {
-        return nodeBuilder(name, new String[]{}, type);
+    public static <S> JavaCommandBuilder<S> literal(String name, Class<S> type) {
+        return literal(name, new String[]{}, type);
     }
 
-    public static <T> JavaCommandBuilder<T> argumentBuilder(Argument<?> argument, Class<T> type) {
-        return new JavaCommandBuilder<T>(argument);
+    public static <S> JavaCommandBuilder<S> argument(Argument<?> argument, Class<S> type) {
+        return new JavaCommandBuilder<>(argument);
     }
 
 
-    public static BooleanArgument booleanArgument(String name, Boolean optional) {
+    public static BooleanArgument bool(String name, Boolean optional) {
         return new BooleanArgument(name, optional);
     }
 
-    public static BooleanArgument booleanArgument(String name) {
-        return booleanArgument(name, false);
+    public static BooleanArgument bool(String name) {
+        return bool(name, false);
+    }
+    public static BooleanArgument bool(String name, String trueString, String falseString) {
+        return new BooleanArgument(name, false, trueString, falseString);
     }
 
-    public static BooleanArgument optionalBooleanArgument(String name) {
-        return booleanArgument(name, true);
+    public static BooleanArgument optionalbool(String name) {
+        return bool(name, true);
+    }
+    public static BooleanArgument optionalbool(String name, String trueString, String falseString) {
+        return new BooleanArgument(name, true, trueString, falseString);
     }
 
 

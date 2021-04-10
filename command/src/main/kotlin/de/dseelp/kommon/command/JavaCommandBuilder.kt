@@ -2,15 +2,9 @@ package de.dseelp.kommon.command
 
 import de.dseelp.kommon.command.arguments.Argument
 import java.util.function.Consumer
+import java.util.function.Function
 
-class JavaCommandBuilder<T : Any>(builder: CommandBuilder<T>) {
-    private val builder = builder
-
-    constructor(
-        name: String? = null,
-        argument: Argument<*>? = null,
-        aliases: Array<String> = arrayOf()
-    ) : this(CommandBuilder(name, argument, aliases))
+class JavaCommandBuilder<S : Any> private constructor(private val builder: CommandBuilder<S>) {
 
     constructor(
         name: String? = null,
@@ -19,25 +13,35 @@ class JavaCommandBuilder<T : Any>(builder: CommandBuilder<T>) {
 
     constructor(argument: Argument<*>) : this(CommandBuilder(argument = argument))
 
-    fun node(builder: JavaCommandBuilder<T>): JavaCommandBuilder<T> {
+    fun then(builder: JavaCommandBuilder<S>): JavaCommandBuilder<S> {
         this.builder.node(builder.builder)
         return this
     }
 
-    fun node(node: CommandNode<T>): JavaCommandBuilder<T> {
+    fun then(node: CommandNode<S>): JavaCommandBuilder<S> {
         this.builder.node(node)
         return this
     }
 
-    fun execute(consumer: Consumer<CommandContext<T>>): JavaCommandBuilder<T> {
+    fun noAccess(consumer: Consumer<Pair<CommandContext<S>, CommandNode<S>>>): JavaCommandBuilder<S> {
+        builder.noAccess { consumer.accept(this to it) }
+        return this
+    }
+
+    fun checkAccess(function: Function<CommandContext<S>, Boolean>): JavaCommandBuilder<S> {
+        builder.checkAccess { function.apply(this) }
+        return this
+    }
+
+    fun execute(consumer: Consumer<CommandContext<S>>): JavaCommandBuilder<S> {
         builder.execute { consumer.accept(this) }
         return this
     }
 
-    fun forward(node: CommandNode<T>): JavaCommandBuilder<T> {
+    fun forward(node: CommandNode<S>): JavaCommandBuilder<S> {
         builder.forward(node)
         return this
     }
 
-    fun build(): CommandNode<T> = builder.build()
+    fun build(): CommandNode<S> = builder.build()
 }

@@ -1,18 +1,23 @@
 package de.dseelp.kommon.command
 
+import de.dseelp.kommon.command.arguments.BooleanArgument
 import de.dseelp.kommon.command.arguments.ParsedArgument
 import de.dseelp.kommon.command.arguments.StringArgument
 
-class CommandDispatcher {
-    private val nodes = mutableListOf<CommandNode<*>>()
+class CommandDispatcher<S : Any> {
+    private val nodes = mutableListOf<CommandNode<S>>()
 
-    fun register(node: CommandNode<*>) {
+    fun register(node: CommandNode<S>) {
         if (node.name == null) throw IllegalArgumentException("The root node must have a name!")
         nodes.add(node)
     }
 
-    fun <T : Any> register(name: String, block: CommandBuilder<T>.() -> Unit) {
+    fun register(name: String, block: CommandBuilder<S>.() -> Unit) {
         register(command(name, block))
+    }
+
+    fun register(builder: JavaCommandBuilder<S>) {
+        register(builder.build())
     }
 
     fun unregister(name: String) {
@@ -33,11 +38,11 @@ class CommandDispatcher {
         return null
     }
 
-    private fun <T : Any> recursiveParse(
-        parent: CommandNode<T>,
+    private fun recursiveParse(
+        parent: CommandNode<S>,
         args: Array<String>,
-        currentResult: ParsedResult<T>
-    ): ParsedResult<T> {
+        currentResult: ParsedResult<S>
+    ): ParsedResult<S> {
         if (args.isEmpty()) return currentResult.copy(node = parent)
 
         val copiedArgs = if (args.size > 1) args.copyOfRange(1, args.size) else arrayOf()
@@ -46,7 +51,6 @@ class CommandDispatcher {
         //val child = getNode(currentArg, true, parent)
         //child?.let { return recursiveParse(it as CommandNode<T>, copiedArgs, currentResult) }
         for (child in parent.childs) {
-
             val endArgs = copiedArgs
             if (child.name?.equals(currentArg, child.ignoreCase) == true)
                 return recursiveParse(
@@ -79,28 +83,29 @@ class CommandDispatcher {
         return currentResult.copy(failed = true, cause = ParsedResult.FailureCause.USAGE)
     }
 
-    private fun <T : Any> copy(result: ParsedResult<T>, parseArgs: Map<String, ParsedArgument<*>>) =
+    private fun copy(result: ParsedResult<S>, parseArgs: Map<String, ParsedArgument<*>>) =
         result.copy(context = result.context.copy(args = result.context.args + parseArgs))
 
-    fun <T : Any> parse(command: String): ParsedResult<T>? {
+    fun parse(command: String): ParsedResult<S>? {
         val splitted = parseRaw(command)
         if (splitted.isEmpty()) {
             return null
         }
         val name = splitted[0]
         val node = getNode(name, useAliases = true) ?: return null
+        @Suppress("UNCHECKED_CAST")
         return recursiveParse(
-            node as CommandNode<T>,
+            node as CommandNode<S>,
             if (splitted.size == 1) arrayOf() else splitted.copyOfRange(1, splitted.size),
             ParsedResult(
+                node,
                 CommandContext(
+                    mapOf(),
                     mapOf()
                 ), failed = false
             )
         )
     }
-
-    fun <T : Any> parse(command: String, type: Class<T>) = parse<T>(command)
 
     private data class ParseArgsResult(
         val ok: Boolean,
@@ -206,26 +211,18 @@ class CommandDispatcher {
 }
 
 fun main() {
-    val dispatcher = CommandDispatcher()
-
-    command<String>("foo") {
-        execute { println("Foo") }
-        node("test") {
-            execute { println("Hallo") }
-            argument(StringArgument("test")) {
+    val dispatcher = CommandDispatcher<String>()
+    dispatcher.register(command("foo") {
+        literal("bar") {
+            argument(StringArgument("testArg")) {
                 execute {
-                    println(get<String>("test"))
-                }
-                node("string") {
-                    execute {
-                        println("String called with arg: " + get<String>("test"))
-                    }
+                    println("Foo bar executed with Arg: ${get<String>("testArg")}")
                 }
             }
         }
-    }
+    })
 
-    val parsed = dispatcher.parse<String>("foo test bareee foo2")
-    parsed?.execute("TestSender")
+    val parsed = dispatcher.parse("foo easdfkgh")
+    parsed?.execute("hi")
     println(parsed)
 }

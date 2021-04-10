@@ -2,57 +2,79 @@ package de.dseelp.kommon.command
 
 import de.dseelp.kommon.command.arguments.Argument
 
-class CommandBuilder<T: Any>(
+class CommandBuilder<S: Any>(
     val name: String? = null,
     val argument: Argument<*>? = null,
     val aliases: Array<String> = arrayOf(),
 ) {
-    var target: CommandNode<T>? = null
+
+    constructor(name: String, aliases: Array<String>): this(name, null, aliases)
+    constructor(argument: Argument<*>): this(name = null, argument = argument)
+
+    var target: CommandNode<S>? = null
         private set
     var arguments: Array<Argument<*>> = arrayOf()
         private set
-    var childs: Array<CommandNode<T>> = arrayOf()
+    var childs: Array<CommandNode<S>> = arrayOf()
         private set
 
-    var executeBlock: (CommandContext<T>.() -> Unit)? = null
-    private set
+    private var executeBlock: (CommandContext<S>.() -> Unit)? = null
+    private var noAccessBlock: (CommandContext<S>.(node: CommandNode<S>) -> Unit)? = null
+    private var checkAccessBlock: (CommandContext<S>.() -> Boolean) = { true }
 
-    fun execute(block: CommandContext<T>.() -> Unit) {
+    private var parameters = mapOf<String, Any>()
+
+    fun noAccess(block: CommandContext<S>.(node: CommandNode<S>) -> Unit) {
+        noAccessBlock = block
+    }
+
+    fun checkAccess(block: CommandContext<S>.() -> Boolean) {
+        checkAccessBlock = block
+    }
+
+    fun execute(block:  CommandContext<S>.() -> Unit) {
         executeBlock = block
     }
 
-    fun forward(node: CommandNode<T>) {
+    fun forward(node: CommandNode<S>) {
         target = node
     }
 
-    fun node(name: String, aliases: Array<String> = arrayOf(), block: CommandBuilder<T>.() -> Unit) {
-        childs += CommandBuilder<T>(name, aliases = aliases).apply(block).build()
+    operator fun Pair<String, Any>.unaryPlus() {
+        parameters = parameters + this
     }
 
-    fun node(builder: CommandBuilder<T>) {
+    @Deprecated("Use literal() instead", ReplaceWith("literal(name, aliases) {block}"))
+    fun node(name: String, aliases: Array<String> = arrayOf(), block: CommandBuilder<S>.() -> Unit) = literal(name, aliases, block)
+
+    fun node(builder: CommandBuilder<S>) {
         childs += builder.build()
     }
 
-    fun node(node: CommandNode<T>) {
+    fun node(node: CommandNode<S>) {
         childs += node
     }
 
-    fun argument(argument: Argument<*>, block: CommandBuilder<T>.() -> Unit) {
-        childs += CommandBuilder<T>(argument = argument).apply(block).build()
+    fun literal(name: String, aliases: Array<String> = arrayOf(), block: CommandBuilder<S>.() -> Unit) {
+        childs += CommandBuilder<S>(name, aliases = aliases).apply(block).build()
+    }
+
+    fun argument(argument: Argument<*>, block: CommandBuilder<S>.() -> Unit) {
+        childs += CommandBuilder<S>(argument = argument).apply(block).build()
     }
 
     /*fun argument(argument: Argument<*>) {
         arguments+=argument
     }*/
 
-    fun build(): CommandNode<T> {
+    fun build(): CommandNode<S> {
         if (name == null && argument == null) throw IllegalStateException("An command node must have a name or an argument!")
         if (target != null && childs.isNotEmpty()) throw IllegalStateException("Cannot forward a node with children")
         if (target != null && arguments.isNotEmpty()) throw IllegalStateException("Cannot forward a node with arguments")
-        return CommandNode(name, aliases, argument, target, arguments, childs, executeBlock)
+        return CommandNode(name, aliases, argument, target, arrayOf(), childs, executeBlock, checkAccess = checkAccessBlock, noAccess = noAccessBlock, parameters = parameters)
     }
 
-    operator fun invoke(block: CommandBuilder<T>.() -> Unit) {
+    operator fun invoke(block: CommandBuilder<S>.() -> Unit) {
         this.apply(block)
     }
 }

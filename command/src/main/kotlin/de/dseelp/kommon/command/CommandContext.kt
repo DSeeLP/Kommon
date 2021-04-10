@@ -3,7 +3,8 @@ package de.dseelp.kommon.command
 import de.dseelp.kommon.command.arguments.ParsedArgument
 
 data class CommandContext<T : Any>(
-    val args: Map<String, ParsedArgument<*>>
+    val args: Map<String, ParsedArgument<*>>,
+    val parameters: Map<String, Any>
 ) {
     lateinit var sender: T
         internal set
@@ -28,6 +29,7 @@ data class CommandContext<T : Any>(
         if (!args.containsKey(key)) throw IllegalArgumentException("An argument with the name $key doesn't exist")
         val value = args[key]!!
         if (value.optional) throw IllegalArgumentException("$key is optional use optional(key: String) instead")
+        @Suppress("UNCHECKED_CAST")
         if (type == value.value!!::class.java) return value.value as T
         throw IllegalArgumentException("$key is not of the type ${type.simpleName}")
     }
@@ -36,6 +38,7 @@ data class CommandContext<T : Any>(
         if (!args.containsKey(key)) throw IllegalArgumentException("An argument with the name $key doesn't exist")
         val value = args[key]!!
         if (value.value == null) return null
+        @Suppress("UNCHECKED_CAST")
         if (type == value.value::class.java) return value.value as T
         throw IllegalArgumentException("$key is not of the type ${type.simpleName}")
     }
