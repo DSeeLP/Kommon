@@ -24,9 +24,9 @@ class CommandDispatcher<S : Any> {
         nodes.remove(node)
     }
 
-    private fun getNode(name: String, useAliases: Boolean = false, parent: CommandNode<S>? = null): CommandNode<S>? {
+    fun getNode(name: String, useAliases: Boolean = false): CommandNode<S>? {
         val lowercaseName = name.toLowerCase()
-        for (node in parent?.childs?.toMutableList() ?: nodes) {
+        for (node in nodes) {
             if (node.name!!.toLowerCase() == lowercaseName) return node
             if (useAliases) {
                 for (alias in node.aliases) {
