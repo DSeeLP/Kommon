@@ -1,5 +1,8 @@
 package de.dseelp.kommon.command
 
+/**
+ * @author DSeeLP
+ */
 data class ParsedResult<S: Any>(
     val root: CommandNode<S>,
     val context: CommandContext<S>,

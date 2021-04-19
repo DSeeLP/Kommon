@@ -2,6 +2,9 @@ package de.dseelp.kommon.command
 
 import de.dseelp.kommon.command.arguments.Argument
 
+/**
+ * @author DSeeLP
+ */
 data class CommandNode<S: Any>(
     val name: String? = null,
     val aliases: Array<String> = arrayOf(),

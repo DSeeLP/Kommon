@@ -2,6 +2,9 @@ package de.dseelp.kommon.command
 
 import de.dseelp.kommon.command.arguments.Argument
 
+/**
+ * @author DSeeLP
+ */
 class CommandBuilder<S: Any>(
     val name: String? = null,
     val argument: Argument<S, *>? = null,
@@ -79,11 +82,12 @@ class CommandBuilder<S: Any>(
     }
 
     fun <I: Any, O: Any?> map(name: String, mapper: CommandContext<S>.(input: I) -> O) {
-        mappers += name to mapper as CommandContext<S>.(input: Any) -> Any?
+        @Suppress("UNCHECKED_CAST")
+        mappers = mappers + (name to mapper as CommandContext<S>.(input: Any) -> Any?)
     }
 
     var mappers: Map<String, CommandContext<S>.(input: Any) -> Any?> = mapOf()
-    private set
+        private set
 }
 
 fun <T: Any> command(name: String, block: CommandBuilder<T>.() -> Unit): CommandNode<T> = CommandBuilder<T>(name).apply(block).build()

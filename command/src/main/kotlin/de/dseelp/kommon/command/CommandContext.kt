@@ -4,6 +4,9 @@ import de.dseelp.kommon.command.arguments.ParsedArgument
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.declaredMemberFunctions
 
+/**
+ * @author DSeeLP
+ */
 data class CommandContext<S : Any>(
     val args: Map<String, ParsedArgument<*>>,
     val parameters: Map<String, Any>,

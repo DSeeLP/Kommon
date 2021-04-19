@@ -1,8 +1,10 @@
 package de.dseelp.kommon.command
 
 import de.dseelp.kommon.command.arguments.ParsedArgument
-import de.dseelp.kommon.command.arguments.StringArgument
 
+/**
+ * @author DSeeLP
+ */
 class CommandDispatcher<S : Any> {
     private val nodes = mutableListOf<CommandNode<S>>()
 
@@ -85,7 +87,8 @@ class CommandDispatcher<S : Any> {
     }
 
 
-    private fun CommandContext<S>.updateContext(mappers: Map<String, CommandContext<S>.(input: Any) -> Any?>) = this.copy(mappers = this.mappers+mappers)
+    private fun CommandContext<S>.updateContext(mappers: Map<String, CommandContext<S>.(input: Any) -> Any?>) =
+        this.copy(mappers = this.mappers + mappers)
 
     private fun copy(result: ParsedResult<S>, parseArgs: Map<String, ParsedArgument<*>>) =
         result.copy(context = result.context.copy(args = result.context.args + parseArgs))
@@ -99,7 +102,7 @@ class CommandDispatcher<S : Any> {
         val node = getNode(name, useAliases = true) ?: return null
         @Suppress("UNCHECKED_CAST")
         return recursiveParse(
-            node as CommandNode<S>,
+            node,
             if (splitted.size == 1) arrayOf() else splitted.copyOfRange(1, splitted.size),
             ParsedResult(
                 node,
@@ -224,10 +227,14 @@ class CommandDispatcher<S : Any> {
         val name = raw[0]
         val node = getNode(name, useAliases = true) ?: return arrayOf()
         val args = if (raw.size == 1) arrayOf() else raw.copyOfRange(1, raw.size)
-        return recursiveComplete(node, CommandContext(mapOf(), mapOf(), mapOf()), args)
+        return recursiveComplete(node, CommandContext<S>(mapOf(), mapOf(), mapOf()).apply { this.sender = sender }, args)
     }
 
-    private fun recursiveComplete(node: CommandNode<S>, context: CommandContext<S>, args: Array<String>): Array<String> {
+    private fun recursiveComplete(
+        node: CommandNode<S>,
+        context: CommandContext<S>,
+        args: Array<String>
+    ): Array<String> {
         val newArgs = if (args.isEmpty()) arrayOf() else args.copyOfRange(1, args.size)
         val current = if (args.isEmpty()) "" else args[0]
         if (args.isNotEmpty() && args[0] != "") {
@@ -251,33 +258,11 @@ class CommandDispatcher<S : Any> {
                 .mapNotNull { it.argumentIdentifier }
                 .map { it.complete(context, current) }
                 .forEach { strings.addAll(it) }
-            node.childs.filter { it.argumentIdentifier == null }.forEach { strings.addAll(it.aliases+it.name!!) }
+            node.childs.filter { it.argumentIdentifier == null }.forEach { strings.addAll(it.aliases + it.name!!) }
             return strings.toTypedArray()
         }
         return arrayOf()
     }
 
 
-}
-
-fun main() {
-    val dispatcher = CommandDispatcher<String>()
-    dispatcher.register(command("foo") {
-        literal("bar") {
-            argument(StringArgument("testArg") { arrayOf("hi")}) {
-                map<String, Double?>("testArg") {it.toDoubleOrNull()}
-                execute {
-                    println("Foo bar executed with Arg: ${get<Double?>("testArg")}")
-                }
-
-                argument(StringArgument("re") { arrayOf("TestS")}) {}
-            }
-        }
-    })
-
-
-    println(dispatcher.complete("Sender", "foo bar h").contentToString())
-    //val parsed = dispatcher.parse("foo bar 10rg")
-    //parsed?.execute("hi")
-    //println(parsed)
 }

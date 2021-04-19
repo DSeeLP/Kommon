@@ -4,6 +4,9 @@ import de.dseelp.kommon.command.arguments.Argument
 import java.util.function.Consumer
 import java.util.function.Function
 
+/**
+ * @author DSeeLP
+ */
 class JavaCommandBuilder<S : Any> private constructor(private val builder: CommandBuilder<S>) {
 
     constructor(

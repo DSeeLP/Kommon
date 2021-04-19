@@ -2,6 +2,9 @@ package de.dseelp.kommon.command;
 
 import de.dseelp.kommon.command.arguments.*;
 
+/**
+ * @author DSeeLP
+ */
 public class JavaBuilderConstants {
     public static <S> JavaCommandBuilder<S> literal(String name, String[] aliases, Class<S> type) {
         return new JavaCommandBuilder<>(name, aliases);
@@ -19,6 +22,7 @@ public class JavaBuilderConstants {
     public static BooleanArgument bool(String name) {
         return new BooleanArgument(name);
     }
+
     public static BooleanArgument bool(String name, String trueString, String falseString) {
         return new BooleanArgument(name, trueString, falseString);
     }

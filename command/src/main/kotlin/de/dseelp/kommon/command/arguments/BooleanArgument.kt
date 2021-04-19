@@ -2,8 +2,12 @@ package de.dseelp.kommon.command.arguments
 
 import de.dseelp.kommon.command.CommandContext
 
+/**
+ * @author DSeeLP
+ */
 class BooleanArgument<S: Any>(name: String, trueString: String = "true", falseString: String = "false") : Argument<S, Boolean>(name) {
     constructor(name: String): this(name, trueString = "true")
+
     override fun get(value: String): Boolean? = value.toBooleanOrNull()
     override fun getErrorMessage(): String = "%s is not a boolean"
     private val possibleValues = arrayOf(trueString, falseString)
