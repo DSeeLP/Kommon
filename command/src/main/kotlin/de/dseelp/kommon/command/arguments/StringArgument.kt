@@ -1,7 +1,10 @@
 package de.dseelp.kommon.command.arguments
 
-class StringArgument(name: String, optional: Boolean = false) : Argument<String>(name, optional) {
+import de.dseelp.kommon.command.CommandContext
+
+class StringArgument<S: Any>(name: String, val completer: CommandContext<S>.() -> Array<String> = { arrayOf() }) : Argument<S, String>(name) {
+    constructor(name: String): this(name, { arrayOf() })
     override fun get(value: String): String = value
     override fun getErrorMessage(): String = "This should not happen!"
-    override fun complete(value: String): Array<String>? = null
+    override fun complete(context: CommandContext<S>, value: String): Array<String> = completer.invoke(context).filterPossibleMatches(value)
 }

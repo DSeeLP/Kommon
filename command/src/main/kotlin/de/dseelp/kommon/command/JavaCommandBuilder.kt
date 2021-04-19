@@ -11,7 +11,7 @@ class JavaCommandBuilder<S : Any> private constructor(private val builder: Comma
         aliases: Array<String> = arrayOf()
     ) : this(CommandBuilder(name, aliases = aliases))
 
-    constructor(argument: Argument<*>) : this(CommandBuilder(argument = argument))
+    constructor(argument: Argument<S, *>) : this(CommandBuilder(argument = argument))
 
     fun then(builder: JavaCommandBuilder<S>): JavaCommandBuilder<S> {
         this.builder.node(builder.builder)

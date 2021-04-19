@@ -1,6 +1,5 @@
 package de.dseelp.kommon.command
 
-import de.dseelp.kommon.command.arguments.BooleanArgument
 import de.dseelp.kommon.command.arguments.ParsedArgument
 import de.dseelp.kommon.command.arguments.StringArgument
 
@@ -25,7 +24,7 @@ class CommandDispatcher<S : Any> {
         nodes.remove(node)
     }
 
-    private fun getNode(name: String, useAliases: Boolean = false, parent: CommandNode<*>? = null): CommandNode<*>? {
+    private fun getNode(name: String, useAliases: Boolean = false, parent: CommandNode<S>? = null): CommandNode<S>? {
         val lowercaseName = name.toLowerCase()
         for (node in parent?.childs?.toMutableList() ?: nodes) {
             if (node.name!!.toLowerCase() == lowercaseName) return node
@@ -56,14 +55,14 @@ class CommandDispatcher<S : Any> {
                 return recursiveParse(
                     child.target ?: child,
                     endArgs,
-                    currentResult.copy(node = child)
+                    currentResult.copy(node = child, context = currentResult.context.updateContext(child.mappers))
                 )
             for (alias in child.aliases) {
                 if (alias.equals(currentArg, child.ignoreCase))
                     return recursiveParse(
                         child.target ?: child,
                         endArgs,
-                        currentResult.copy(node = child)
+                        currentResult.copy(node = child, context = currentResult.context.updateContext(child.mappers))
                     )
             }
             val idArg = child.argumentIdentifier
@@ -73,8 +72,10 @@ class CommandDispatcher<S : Any> {
                 child.target ?: child,
                 endArgs,
                 copy(
-                    currentResult, mapOf(idArg.name to ParsedArgument(idArg.name, idArg.optional, value))
-                )
+                    currentResult, mapOf(idArg.name to ParsedArgument(idArg.name, false, value))
+                ).let {
+                    it.copy(context = it.context.updateContext(child.mappers))
+                }
             )
         }
         val parseArgs = parseArgs(parent, args)
@@ -82,6 +83,9 @@ class CommandDispatcher<S : Any> {
         if (parent.executor != null) return currentResult.copy(node = parent)
         return currentResult.copy(failed = true, cause = ParsedResult.FailureCause.USAGE)
     }
+
+
+    private fun CommandContext<S>.updateContext(mappers: Map<String, CommandContext<S>.(input: Any) -> Any?>) = this.copy(mappers = this.mappers+mappers)
 
     private fun copy(result: ParsedResult<S>, parseArgs: Map<String, ParsedArgument<*>>) =
         result.copy(context = result.context.copy(args = result.context.args + parseArgs))
@@ -100,6 +104,7 @@ class CommandDispatcher<S : Any> {
             ParsedResult(
                 node,
                 CommandContext(
+                    mapOf(),
                     mapOf(),
                     mapOf()
                 ), failed = false
@@ -153,9 +158,9 @@ class CommandDispatcher<S : Any> {
             val value = arg.get(s)
             if (value != null) {
                 usedIndex = index
-                parsed.add(ParsedArgument(arg.name, arg.optional, value))
+                parsed.add(ParsedArgument(arg.name, false, value))
             } else {
-                if (arg.optional) continue
+                //if (arg.optional) continue
                 //TODO: Error Handling
                 return ParseArgsResult(false, usage = true)
             }
@@ -163,7 +168,8 @@ class CommandDispatcher<S : Any> {
         }
         if (usedIndex != nArgs.lastIndex) {
             for (index in (if (usedIndex == -1) 0 else usedIndex)..nArgs.lastIndex) {
-                if (!nArgs[index].optional) return ParseArgsResult(false, failedArg = true)
+//                if (!nArgs[index].optional) return ParseArgsResult(false, failedArg = true)
+                return ParseArgsResult(false, failedArg = true)
             }
         }
 
@@ -183,15 +189,15 @@ class CommandDispatcher<S : Any> {
         var inS = false
         var raw = ""
         for (s in rawSplitted) {
-            if (!inS && s.startsWith('"')) {
-                if (s == "\"\"") continue
+            if (!inS && s.startsWith('\'')) {
+                if (s == "''") continue
                 inS = true
-                raw = if (s == "\" ") " "
-                else "${s.replaceFirst("\"", "")} "
+                raw = if (s == "' ") " "
+                else "${s.replaceFirst("'", "")} "
                 continue
             }
             if (inS) {
-                if (s.endsWith('"')) {
+                if (s.endsWith('\'')) {
                     inS = false
                     if (s.length in 1..1) {
                         raw += " "
@@ -208,21 +214,70 @@ class CommandDispatcher<S : Any> {
         if (inS) splitted.add(raw.substring(0 until raw.lastIndex))
         return splitted.toTypedArray()
     }
+
+
+    fun complete(sender: S, command: String): Array<String> {
+        val raw = parseRaw(command)
+        if (raw.isEmpty()) {
+            return arrayOf()
+        }
+        val name = raw[0]
+        val node = getNode(name, useAliases = true) ?: return arrayOf()
+        val args = if (raw.size == 1) arrayOf() else raw.copyOfRange(1, raw.size)
+        return recursiveComplete(node, CommandContext(mapOf(), mapOf(), mapOf()), args)
+    }
+
+    private fun recursiveComplete(node: CommandNode<S>, context: CommandContext<S>, args: Array<String>): Array<String> {
+        val newArgs = if (args.isEmpty()) arrayOf() else args.copyOfRange(1, args.size)
+        val current = if (args.isEmpty()) "" else args[0]
+        if (args.isNotEmpty() && args[0] != "") {
+            for (child in node.childs) {
+                if (child.name?.equals(current, child.ignoreCase) == true) {
+                    return recursiveComplete(child, context, newArgs)
+                }
+                if (args[args.lastIndex] != "") continue
+                val idArg = child.argumentIdentifier
+                val value = idArg?.get(current) ?: continue
+                return recursiveComplete(
+                    child,
+                    context.copy(context.args.plus(idArg.name to ParsedArgument(idArg.name, false, value))),
+                    newArgs
+                )
+            }
+        }
+        if (newArgs.isEmpty()) {
+            val strings = mutableSetOf<String>()
+            node.childs
+                .mapNotNull { it.argumentIdentifier }
+                .map { it.complete(context, current) }
+                .forEach { strings.addAll(it) }
+            node.childs.filter { it.argumentIdentifier == null }.forEach { strings.addAll(it.aliases+it.name!!) }
+            return strings.toTypedArray()
+        }
+        return arrayOf()
+    }
+
+
 }
 
 fun main() {
     val dispatcher = CommandDispatcher<String>()
     dispatcher.register(command("foo") {
         literal("bar") {
-            argument(StringArgument("testArg")) {
+            argument(StringArgument("testArg") { arrayOf("hi")}) {
+                map<String, Double?>("testArg") {it.toDoubleOrNull()}
                 execute {
-                    println("Foo bar executed with Arg: ${get<String>("testArg")}")
+                    println("Foo bar executed with Arg: ${get<Double?>("testArg")}")
                 }
+
+                argument(StringArgument("re") { arrayOf("TestS")}) {}
             }
         }
     })
 
-    val parsed = dispatcher.parse("foo easdfkgh")
-    parsed?.execute("hi")
-    println(parsed)
+
+    println(dispatcher.complete("Sender", "foo bar h").contentToString())
+    //val parsed = dispatcher.parse("foo bar 10rg")
+    //parsed?.execute("hi")
+    //println(parsed)
 }
