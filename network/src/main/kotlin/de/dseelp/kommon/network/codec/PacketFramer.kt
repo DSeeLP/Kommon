@@ -1,6 +1,7 @@
 package de.dseelp.kommon.network.codec
 
-import de.dseelp.kommon.network.codec.packet.BufferUtils
+import de.dseelp.kommon.network.codec.packet.BufferUtils.readVarInt
+import de.dseelp.kommon.network.codec.packet.BufferUtils.writeVarInt
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ByteToMessageCodec
@@ -17,7 +18,7 @@ class PacketFramer: ByteToMessageCodec<ByteBuf>() {
         val headerSize: Int = getVarIntSize(packetSize)
         check(headerSize <= 3) { "Unable to fit $headerSize into 3" }
         frameTarget.ensureWritable(packetSize + headerSize)
-        BufferUtils.writeVarInt(packetSize, frameTarget)
+        frameTarget.writeVarInt(packetSize)
         frameTarget.writeBytes(packetBuffer, packetBuffer.readerIndex(), packetSize)
     }
 
@@ -39,7 +40,7 @@ class PacketFramer: ByteToMessageCodec<ByteBuf>() {
             val b = buffer.readByte()
             if (b >= 0) {
                 buffer.resetReaderIndex()
-                val packetSize: Int = BufferUtils.readVarInt(buffer)
+                val packetSize: Int = buffer.readVarInt()
 
                 // Max packet size check
                 if (packetSize >= maxPacketSize) {

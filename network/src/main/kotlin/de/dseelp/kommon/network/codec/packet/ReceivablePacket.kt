@@ -1,7 +1,7 @@
 package de.dseelp.kommon.network.codec.packet
 
 import de.dseelp.kommon.network.codec.ConnectionState
-import de.dseelp.kommon.network.utils.KNettyUtils.getDelegatedData
+import de.dseelp.kommon.network.utils.DelegateCache.getCachedDelegates
 import io.netty.buffer.ByteBuf
 
 interface ReceivablePacket: Packet {
@@ -11,7 +11,7 @@ interface ReceivablePacket: Packet {
 
     fun read(buffer: ByteBuf) {
         if (!readOnly) return
-        for (delegate in this::class.getDelegatedData(this)) {
+        for (delegate in this::class.getCachedDelegates(this)) {
             delegate.read(buffer)
         }
     }

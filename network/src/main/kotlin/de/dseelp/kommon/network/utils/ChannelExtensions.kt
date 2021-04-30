@@ -1,16 +1,12 @@
 package de.dseelp.kommon.network.utils
 
-import de.dseelp.kommon.network.codec.ConnectionState
 import io.netty.channel.*
 import kotlinx.coroutines.*
-import kotlinx.serialization.InternalSerializationApi
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resumeWithException
-import kotlin.properties.Delegates
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
-import kotlin.reflect.typeOf
 
 val Channel.scope: ChannelScope
     get() = getScope(id())
@@ -47,19 +43,18 @@ annotation class InternalNetworkApi()
 
 
 suspend fun ChannelFuture.awaitSuspending() = suspendCancellableCoroutine<ChannelFuture> { continuation ->
-    val listener = ChannelFutureListener {
-        continuation.resumeWith(Result.success(it))
+    val listener = ChannelFutureListener { future ->
+        val cause = future.cause()
+        if (cause == null) {
+            continuation.resumeWith(Result.success(future))
+            return@ChannelFutureListener
+        }
+        continuation.resumeWithException(cause)
     }
     addListener(listener)
     continuation.invokeOnCancellation {
-        if (isCancellable && !isCancelled) {
-            removeListener(listener)
-            try {
-                this.cancel(true)
-            }catch (ex: Exception) {
-                continuation.resumeWithException(ex)
-            }
-        }
+        removeListener(listener)
+        this.cancel(true)
     }
 }
 
@@ -76,13 +71,13 @@ class ChannelScope(val id: ChannelId): CoroutineScope {
     private val job = Job()
     private val exceptionHandler = CoroutineExceptionHandler { context, throwable ->
         GlobalScope.launch {
-            if (!(findRootCause(throwable) is CancellationException)) {
-
-            }
+            if (findRootCause(throwable) !is CancellationException) {
+                if (KNettyUtils.DEBUG_MODE) throwable.printStackTrace()
+            } else throwable.printStackTrace()
         }
     }
 
-    fun findRootCause(throwable: Throwable): Throwable {
+    private fun findRootCause(throwable: Throwable): Throwable {
         var root: Throwable? = throwable
         while (root?.cause != null && root.cause !== root) {
             root = root.cause

@@ -7,16 +7,17 @@ import de.dseelp.kommon.network.codec.packet.SendablePacket
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.MessageToByteEncoder
+import java.util.*
 
-class PacketEncoder(val packetDispatcher: PacketDispatcher): MessageToByteEncoder<SendablePacket>() {
-    override fun encode(ctx: ChannelHandlerContext, packet: SendablePacket, buffer: ByteBuf) {
+class ResponsePacketEncoder(val packetDispatcher: PacketDispatcher): MessageToByteEncoder<Pair<UUID, SendablePacket>>() {
+    override fun encode(ctx: ChannelHandlerContext, msg: Pair<UUID, SendablePacket>, buffer: ByteBuf) {
+        val id = msg.first
+        val packet = msg.second
         buffer.writeVarInt(packet.packetIdentifier)
-        if (packetDispatcher.isResponseEnabled) {
-            val sendMessageId = packet.sendMessageId
-            buffer.writeBoolean(sendMessageId)
-            if (sendMessageId) buffer.writeUniqueId(packetDispatcher.getIdForSendablePacket(packet))
-            buffer.writeBoolean(false)
-        }
+        buffer.writeBoolean(true)
+        buffer.writeUniqueId(packetDispatcher.getIdForSendablePacket(packet))
+        buffer.writeBoolean(true)
+        buffer.writeUniqueId(id)
         packet.write(buffer)
     }
 }

@@ -36,8 +36,8 @@ class EventDispatcher(val eventBus: EventBus = EventBus()) {
         }
     }
 
-    suspend inline fun <reified T> wait(): T {
+    /*suspend inline fun <reified T> wait(): T {
         eventBus.eventFlow.first()
         eventBus.eventFlow.filterIsInstance<T>().single()
-    }
+    }*/
 }

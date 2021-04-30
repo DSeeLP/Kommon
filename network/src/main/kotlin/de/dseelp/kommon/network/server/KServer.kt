@@ -1,8 +1,12 @@
 package de.dseelp.kommon.network.server
 
 import de.dseelp.kommon.event.EventDispatcher
+import de.dseelp.kommon.network.codec.packet.PacketDispatcher
 import de.dseelp.kommon.network.utils.KNettyUtils
+import de.dseelp.kommon.network.utils.KNettyUtils.TransportType
+import de.dseelp.kommon.network.utils.NetworkAddress
 import de.dseelp.kommon.network.utils.awaitSuspending
+import de.dseelp.kommon.network.utils.scope
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.Channel
 import io.netty.channel.ChannelFuture
@@ -10,20 +14,33 @@ import io.netty.channel.ChannelInitializer
 import io.netty.channel.EventLoopGroup
 import io.netty.channel.group.ChannelGroup
 import io.netty.channel.group.DefaultChannelGroup
+import io.netty.channel.local.LocalAddress
+import io.netty.channel.local.LocalServerChannel
 import io.netty.channel.socket.SocketChannel
 import io.netty.handler.ssl.SslContext
 import io.netty.handler.ssl.SslContextBuilder
 import io.netty.handler.ssl.util.SelfSignedCertificate
 import io.netty.util.concurrent.GlobalEventExecutor
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import java.net.InetSocketAddress
 
-class KServer(val nativeTransport: Boolean = true, val nThreads: Int = 0, val eventDispatcher: EventDispatcher = EventDispatcher(), val ssl: Boolean = true) {
-    val mainGroup: EventLoopGroup = KNettyUtils.EventLoops.eventLoopGroup(nativeTransport, nThreads)
-    val childGroup: EventLoopGroup = KNettyUtils.EventLoops.eventLoopGroup(nativeTransport, nThreads)
+class KServer(
+    val address: NetworkAddress,
+    val isNativeTransportEnabled: Boolean = true,
+    isResponseEnabled: Boolean = true,
+    val ssl: Boolean = true
+) : PacketDispatcher(isResponseEnabled) {
+    val bossGroup: EventLoopGroup = TransportType(isNativeTransportEnabled).eventLoopGroup
+    val workerGroup: EventLoopGroup = TransportType(isNativeTransportEnabled).eventLoopGroup
+    val socketAddress = when (address) {
+        is NetworkAddress.InetNetworkAddress -> InetSocketAddress(address.host, address.port)
+        is NetworkAddress.LocalNetworkAddress -> LocalAddress(address.id)
+    }
     val bootstrap: ServerBootstrap = ServerBootstrap()
-        .channel(KNettyUtils.Channels.serverSocketChannel(nativeTransport).java)
-        .group(mainGroup, childGroup)
-        .childHandler(object: ChannelInitializer<SocketChannel>() {
+        .channel(if (socketAddress is LocalAddress) LocalServerChannel::class.java else TransportType(isNativeTransportEnabled).serverSocketChannel.java)
+        .group(bossGroup, workerGroup)
+        .childHandler(object : ChannelInitializer<SocketChannel>() {
             override fun initChannel(ch: SocketChannel) {
                 var sslContext: SslContext? = null
                 if (ssl) {
@@ -33,54 +50,53 @@ class KServer(val nativeTransport: Boolean = true, val nThreads: Int = 0, val ev
                 val pipeline = ch.pipeline()
                 if (sslContext != null) pipeline.addLast("sslHandler", sslContext.newHandler(ch.alloc()))
                 channels.add(ch)
-                pipeline.addLast("defaultActive", KNettyUtils.DefaultChannelActiveHandler(true, eventDispatcher))
-                KNettyUtils.channelPipeline(pipeline, eventDispatcher, packetDispatcher)
-                runBlocking {
-                    eventDispatcher.call(ServerChannelInitializeEvent(ch))
+                pipeline.addLast("defaultActive", KNettyUtils.DefaultChannelActiveHandler(true, this@KServer))
+                KNettyUtils.channelPipeline(pipeline, this@KServer, isResponseEnabled)
+                ch.scope.launch {
+                    callEvent(ServerChannelInitializeEvent(ch))
                 }
-                pipeline.addLast("defaultInactive", KNettyUtils.DefaultChannelInactiveHandler(true, eventDispatcher))
+                pipeline.addLast("defaultInactive", KNettyUtils.DefaultChannelInactiveHandler(true, this@KServer))
             }
         })
-    var channel: Channel? = null
-    private set
+    lateinit var channel: Channel
+        private set
 
     val channels: ChannelGroup = DefaultChannelGroup(GlobalEventExecutor.INSTANCE)
 
-    private var onceBinded = false
-
     private var binding = false
-    var isBinded = false
-    private set
+    var isStopped = false
+        private set
+    var isStarted = false
+        private set
 
-    val packetDispatcher = EventDispatcher()
 
-
-    suspend fun bind(host: String = "0.0.0.0", port: Int): ChannelFuture? {
-        if (binding) return null
+    suspend fun start(): ChannelFuture? {
+        if (binding || isStarted || isStopped) return null
         binding = true
-        bootstrap.bind(host, port).awaitSuspending().apply {
+        bootstrap.bind(socketAddress).awaitSuspending().apply {
             if (isSuccess) {
-                isBinded = true
-                onceBinded = true
-            }else {
-                mainGroup.shutdownGracefully()
-                childGroup.shutdownGracefully()
+                channel = this.channel()
+                isStarted = true
+            } else {
+                bossGroup.shutdownGracefully()
+                workerGroup.shutdownGracefully()
             }
             binding = false
-            eventDispatcher.call(ServerBindEvent(isSuccess, cause()))
+            callEvent(ServerBindEvent(isSuccess, cause()))
             return this
         }
     }
 
-    suspend fun shutdown() {
-        if (!isBinded) return
+    suspend fun stop() {
+        if (!isStarted || isStopped) return
         try {
-            mainGroup.shutdownGracefully()
-            childGroup.shutdownGracefully()
-        }finally {
+            bossGroup.shutdownGracefully()
+            workerGroup.shutdownGracefully()
+        } finally {
             channel?.closeFuture()?.awaitSuspending()
-            isBinded = false
-            eventDispatcher.call(ServerClosedEvent())
+            isStarted = false
+            callEvent(ServerClosedEvent())
+            coroutineScope.cancel("Server stopped")
         }
     }
 }
