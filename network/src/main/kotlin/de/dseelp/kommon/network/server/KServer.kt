@@ -1,7 +1,8 @@
 package de.dseelp.kommon.network.server
 
-import de.dseelp.kommon.event.EventDispatcher
 import de.dseelp.kommon.network.codec.packet.PacketDispatcher
+import de.dseelp.kommon.network.codec.packet.PingPacket
+import de.dseelp.kommon.network.codec.packet.invoke
 import de.dseelp.kommon.network.utils.KNettyUtils
 import de.dseelp.kommon.network.utils.KNettyUtils.TransportType
 import de.dseelp.kommon.network.utils.NetworkAddress
@@ -15,12 +16,13 @@ import io.netty.channel.EventLoopGroup
 import io.netty.channel.group.ChannelGroup
 import io.netty.channel.group.DefaultChannelGroup
 import io.netty.channel.local.LocalAddress
+import io.netty.channel.local.LocalChannel
 import io.netty.channel.local.LocalServerChannel
-import io.netty.channel.socket.SocketChannel
 import io.netty.handler.ssl.SslContext
 import io.netty.handler.ssl.SslContextBuilder
 import io.netty.handler.ssl.util.SelfSignedCertificate
 import io.netty.util.concurrent.GlobalEventExecutor
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.net.InetSocketAddress
@@ -28,8 +30,9 @@ import java.net.InetSocketAddress
 class KServer(
     val address: NetworkAddress,
     val isNativeTransportEnabled: Boolean = true,
+    val ssl: Boolean = true,
     isResponseEnabled: Boolean = true,
-    val ssl: Boolean = true
+    val isDefaultPingEnabled: Boolean = true
 ) : PacketDispatcher(isResponseEnabled) {
     val bossGroup: EventLoopGroup = TransportType(isNativeTransportEnabled).eventLoopGroup
     val workerGroup: EventLoopGroup = TransportType(isNativeTransportEnabled).eventLoopGroup
@@ -38,12 +41,16 @@ class KServer(
         is NetworkAddress.LocalNetworkAddress -> LocalAddress(address.id)
     }
     val bootstrap: ServerBootstrap = ServerBootstrap()
-        .channel(if (socketAddress is LocalAddress) LocalServerChannel::class.java else TransportType(isNativeTransportEnabled).serverSocketChannel.java)
+        .channel(
+            if (socketAddress is LocalAddress) LocalServerChannel::class.java else TransportType(
+                isNativeTransportEnabled
+            ).serverSocketChannel.java
+        )
         .group(bossGroup, workerGroup)
-        .childHandler(object : ChannelInitializer<SocketChannel>() {
-            override fun initChannel(ch: SocketChannel) {
+        .childHandler(object : ChannelInitializer<Channel>() {
+            override fun initChannel(ch: Channel) {
                 var sslContext: SslContext? = null
-                if (ssl) {
+                if (ssl && channel !is LocalChannel) {
                     val ssc = SelfSignedCertificate()
                     sslContext = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build()
                 }
@@ -69,6 +76,28 @@ class KServer(
     var isStarted = false
         private set
 
+    init {
+        if (isDefaultPingEnabled) registerPacket(PingPacket::class)
+    }
+
+    suspend fun ping(channel: Channel): Long = dslScope {
+        if (isDefaultPingEnabled) throw UnsupportedOperationException("The default ping implementation is not activated!")
+        try {
+            val deferred = channel.sendPacket<PingPacket>(PingPacket())
+            return@dslScope System.currentTimeMillis() - deferred.await().time
+        }catch (ex: TimeoutCancellationException) {
+            return@dslScope -1
+        }
+    }
+
+    suspend fun <R> scope(block: suspend PacketDispatcherDslScope.() -> R) {
+        dslScope.invoke(block)
+    }
+
+    operator fun <R> invoke(block: KServer.() -> R): R = block.invoke(this)
+
+    suspend fun <R> invokeSuspend(block: suspend KServer.() -> R): R = block.invoke(this)
+
 
     suspend fun start(): ChannelFuture? {
         if (binding || isStarted || isStopped) return null
@@ -93,7 +122,7 @@ class KServer(
             bossGroup.shutdownGracefully()
             workerGroup.shutdownGracefully()
         } finally {
-            channel?.closeFuture()?.awaitSuspending()
+            channel.closeFuture()?.awaitSuspending()
             isStarted = false
             callEvent(ServerClosedEvent())
             coroutineScope.cancel("Server stopped")

@@ -1,5 +1,6 @@
 package de.dseelp.kommon.network.server
 
+import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.socket.SocketChannel
 
@@ -11,7 +12,7 @@ enum class ServerBindFailedCause() {
 
 class ServerClosedEvent
 
-data class ServerChannelInitializeEvent(val channel: SocketChannel)
+data class ServerChannelInitializeEvent(val channel: Channel)
 data class ServerChannelActiveEvent(val ctx: ChannelHandlerContext) {
     val channel = ctx.channel()!!
 }

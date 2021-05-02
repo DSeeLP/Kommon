@@ -14,6 +14,9 @@ dependencies {
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     api(project(":event"))
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:1.4.31")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
 }
 
 val implementationVersion = version

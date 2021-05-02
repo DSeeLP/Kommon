@@ -82,6 +82,14 @@ open class PacketDispatcher(val isResponseEnabled: Boolean = true) {
         return id
     }
 
+    suspend inline fun <reified R: Any> waitForEvent(timeout: Long = 5000): Deferred<R> = coroutineScope {
+        return@coroutineScope async {
+            return@async withTimeout(timeout) {
+                eventFlow.filterIsInstance<R>().first()
+            }
+        }
+    }
+
 
     suspend inline fun <reified T : Any> onEvent(
         dispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -186,6 +194,4 @@ open class PacketDispatcher(val isResponseEnabled: Boolean = true) {
     }
 }
 
-suspend fun PacketDispatcher.PacketDispatcherDslScope.test(block: suspend PacketDispatcher.PacketDispatcherDslScope.() -> Unit) {
-    block.invoke(this)
-}
+suspend operator fun <R> PacketDispatcher.PacketDispatcherDslScope.invoke(block: suspend PacketDispatcher.PacketDispatcherDslScope.() -> R): R = block.invoke(this)

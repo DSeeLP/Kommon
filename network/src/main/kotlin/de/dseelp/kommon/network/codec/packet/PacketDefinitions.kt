@@ -166,7 +166,7 @@ object BufferUtils {
     }
 }
 
-class SimplePacketData<T>(private val readOnly: Boolean, private val read: (buffer: ByteBuf)->T, private val write: (buffer: ByteBuf, value: T)->Unit, defaultValue: T? = null): PacketData<T, T>() {
+class SimplePacketData<T>(private val read: (buffer: ByteBuf)->T, private val write: (buffer: ByteBuf, value: T)->Unit, defaultValue: T? = null): PacketData<T, T>() {
     var value: T? = defaultValue
         private set
 
@@ -175,7 +175,6 @@ class SimplePacketData<T>(private val readOnly: Boolean, private val read: (buff
     }
 
     override fun write(buffer: ByteBuf) {
-        if (readOnly) return
         value?.let { write.invoke(buffer, it) }
     }
 
@@ -192,7 +191,7 @@ class SimplePacketData<T>(private val readOnly: Boolean, private val read: (buff
     }
 }
 
-class OptionalPacketData<V>(private val readOnly: Boolean, private val data: PacketData<V, out V?>, private val condition: () -> Boolean): PacketData<V, V?>() {
+class OptionalPacketData<V>(private val data: PacketData<V, out V?>, private val condition: () -> Boolean): PacketData<V, V?>() {
 
     var match = false
 
@@ -204,7 +203,6 @@ class OptionalPacketData<V>(private val readOnly: Boolean, private val data: Pac
     }
 
     override fun write(buffer: ByteBuf) {
-        if (readOnly) return
         data.write(buffer)
     }
 
@@ -214,7 +212,6 @@ class OptionalPacketData<V>(private val readOnly: Boolean, private val data: Pac
     }
 
     override fun setValue(value: V) {
-        if (readOnly) return
         data.setValue(value)
     }
 

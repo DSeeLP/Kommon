@@ -6,11 +6,8 @@ import io.netty.buffer.ByteBuf
 
 interface ReceivablePacket: Packet {
     val state: ConnectionState
-    override val readOnly: Boolean
-        get() = true
 
     fun read(buffer: ByteBuf) {
-        if (!readOnly) return
         for (delegate in this::class.getCachedDelegates(this)) {
             delegate.read(buffer)
         }
