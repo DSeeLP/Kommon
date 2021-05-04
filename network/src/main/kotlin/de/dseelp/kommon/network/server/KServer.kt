@@ -77,18 +77,24 @@ class KServer(
         private set
 
     init {
-        if (isDefaultPingEnabled) registerPacket(PingPacket::class)
+        if (isDefaultPingEnabled) {
+            registerPacket(PingPacket::class)
+            on<PingPacket> { ctx, packet ->
+                if (packet.isResponse) return@on
+                packet.respond(packet.apply { isResponse = true })
+            }
+        }
     }
 
-    suspend fun ping(channel: Channel): Long = dslScope {
-        if (isDefaultPingEnabled) throw UnsupportedOperationException("The default ping implementation is not activated!")
+    suspend fun ping(channel: Channel): Int = dslScope {
+        if (!isDefaultPingEnabled) throw UnsupportedOperationException("The default ping implementation is not activated!")
         try {
             val deferred = channel.sendPacket<PingPacket>(PingPacket())
             return@dslScope System.currentTimeMillis() - deferred.await().time
         }catch (ex: TimeoutCancellationException) {
             return@dslScope -1
         }
-    }
+    }.toInt()
 
     suspend fun <R> scope(block: suspend PacketDispatcherDslScope.() -> R) {
         dslScope.invoke(block)

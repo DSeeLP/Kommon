@@ -66,22 +66,30 @@ class KClient(
         private set
 
     init {
-        if (isDefaultPingEnabled) registerPacket(PingPacket::class)
+        if (isDefaultPingEnabled) {
+            registerPacket(PingPacket::class)
+            on<PingPacket> { ctx, packet ->
+                if (packet.isResponse) return@on
+                packet.respond(packet.apply { isResponse = true })
+            }
+        }
     }
 
     fun send(packet: SendablePacket) {
         channel.writeAndFlush(packet)
     }
 
-    suspend fun ping(): Long = dslScope {
-        if (isDefaultPingEnabled) throw UnsupportedOperationException("The default ping implementation is not activated!")
+    suspend fun ping(): Int = dslScope {
+        if (!isDefaultPingEnabled) throw UnsupportedOperationException("The default ping implementation is not activated!")
         try {
             val deferred = sendPacket<PingPacket>(PingPacket())
-            return@dslScope System.currentTimeMillis() - deferred.await().time
+            return@dslScope withTimeout(5000) {
+                System.currentTimeMillis() - deferred.await().time
+            }
         }catch (ex: TimeoutCancellationException) {
             return@dslScope -1
         }
-    }
+    }.toInt()
 
     suspend fun <R> scope(block: suspend PacketDispatcherDslScope.() -> R) {
         dslScope.invoke(block)
@@ -93,7 +101,7 @@ class KClient(
 
     fun ReceivablePacket.respond(packet: SendablePacket) = dslScope.run { this@respond.respond(packet) }
 
-    suspend inline fun <reified R: ReceivablePacket> sendPacket(packet: SendablePacket, timeout: Long = 5000): Deferred<R> = dslScope.run { channel.sendPacket(packet, timeout) }
+    inline fun <reified R: ReceivablePacket> sendPacket(packet: SendablePacket): Deferred<R> = dslScope.run { channel.sendPacket(packet) }
 
 
     suspend fun connect() {
@@ -115,7 +123,7 @@ class KClient(
         try {
             eventLoopGroup.shutdownGracefully()
         }finally {
-            channel?.closeFuture()?.awaitSuspending()
+            channel.closeFuture()?.awaitSuspending()
             isConnected = false
             callEvent(ServerClosedEvent())
             coroutineScope.cancel("Client stopped")

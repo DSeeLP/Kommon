@@ -1,7 +1,7 @@
 package de.dseelp.kommon.network.codec.packet
 
-import de.dseelp.kommon.event.EventDispatcher
 import de.dseelp.kommon.network.codec.ConnectionState
+import de.dseelp.kommon.network.utils.PacketBus
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
 import kotlinx.coroutines.*
@@ -16,10 +16,10 @@ import kotlin.reflect.full.createInstance
 import kotlin.reflect.typeOf
 
 open class PacketDispatcher(val isResponseEnabled: Boolean = true) {
-    private val _packetFlow = MutableSharedFlow<Pair<ChannelHandlerContext, ReceivablePacket>>(extraBufferCapacity = 500000, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-    val packetFlow = _packetFlow.asSharedFlow()
     private val _eventFlow = MutableSharedFlow<Any>()
     val eventFlow = _eventFlow.asSharedFlow()
+
+    val packetBus = PacketBus()
 
     var maxCacheCapacity = 200
 
@@ -44,6 +44,24 @@ open class PacketDispatcher(val isResponseEnabled: Boolean = true) {
 
     val dslScope = PacketDispatcherDslScope(this)
 
+    val waitingPackets = hashMapOf<UUID, CompletableDeferred<*>>()/*object : LinkedHashMap<UUID, CompletableDeferred<*>>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<UUID, CompletableDeferred<*>>?): Boolean {
+            return size > maxCacheCapacity
+        }
+    }*/
+
+    init {
+        packetBus.addHandler<ReceivablePacket> { ctx, packet ->
+            val p = packet
+            p.responseId
+            val waitingPackets = waitingPackets
+            val deferred = waitingPackets[packet.responseId] ?: return@addHandler
+            @Suppress("UNCHECKED_CAST")
+            deferred as CompletableDeferred<ReceivablePacket>
+            deferred.complete(packet)
+        }
+    }
+
     class PacketDispatcherDslScope internal constructor(val dispatcher: PacketDispatcher) {
         val ReceivablePacket.id: UUID
             get() = dispatcher.receivedPacketIdCache[this]!!.first
@@ -58,20 +76,12 @@ open class PacketDispatcher(val isResponseEnabled: Boolean = true) {
             dispatcher.channelCache[id]!!.writeAndFlush(id to packet)
         }
 
-        suspend inline fun <reified R: ReceivablePacket> Channel.sendPacket(packet: SendablePacket, timeout: Long = 5000): Deferred<R> = coroutineScope {
-            return@coroutineScope async {
-                return@async withTimeout(timeout) {
-                    val id = dispatcher.getIdForSendablePacket(packet)
-                    writeAndFlush(packet)
-                    dispatcher.packetFlow.filterIsInstance<Pair<ChannelHandlerContext, ReceivablePacket>>().filter {
-                        val receivedId = it.second.responseId
-                        if (it.first.channel().id() != id()) return@filter false
-                        if (receivedId == null) false
-                        else id == receivedId
-                    }.first().second as R
-                }
-
-            }
+        inline fun <reified R: ReceivablePacket> Channel.sendPacket(packet: SendablePacket): Deferred<R> {
+            val id = dispatcher.getIdForSendablePacket(packet)
+            val deferred = CompletableDeferred<R>()
+            dispatcher.waitingPackets[id] = deferred
+            writeAndFlush(packet)
+            return deferred
         }
     }
 
@@ -110,7 +120,8 @@ open class PacketDispatcher(val isResponseEnabled: Boolean = true) {
         if (receivedPacketIdCache.size > 2000) {
             receivedPacketIdCache
         }
-        _packetFlow.emit(ctx to packet)
+        //_packetFlow.emit(ctx to packet)
+        packetBus.call(dslScope, ctx, packet)
         //receivedPacketIdCache.remove(packet)
         //channelCache.remove(messageId)
         /*coroutineScope {
@@ -127,42 +138,14 @@ open class PacketDispatcher(val isResponseEnabled: Boolean = true) {
         else _eventFlow.emit(event)
     }
 
-    suspend inline fun <reified T : ReceivablePacket> on(
-        dispatcher: CoroutineDispatcher = Dispatchers.IO,
-        sequential: Boolean = true,
-        crossinline block: suspend PacketDispatcherDslScope.(ctx: ChannelHandlerContext, packet: T) -> Unit
-    ) = coroutineScope.launch(dispatcher) {
-        packetFlow.filterIsInstance<Pair<ChannelHandlerContext, T>>().collect {
-            if (sequential) block(dslScope, it.first, it.second)
-            else launch {
-                block(dslScope, it.first, it.second)
-            }
-        }
-    }
+    inline fun <reified T : ReceivablePacket> on(
+        noinline block: suspend PacketDispatcherDslScope.(ctx: ChannelHandlerContext, packet: T) -> Unit
+    ) = packetBus.addHandler(block)
 
     @OptIn(ExperimentalStdlibApi::class)
-    suspend inline fun <reified T : ReceivablePacket> addHandler(
+    inline fun <reified T : ReceivablePacket> addHandler(
         function: KFunction<*>,
-        dispatcher: CoroutineDispatcher = Dispatchers.IO,
-        sequential: Boolean = false
-    ) = coroutineScope.launch(dispatcher) {
-        val parameters = function.parameters
-        val ctxType = typeOf<ChannelHandlerContext>()
-        val packetType = typeOf<T>()
-        val ctxParameter = parameters.firstOrNull { it.type == ctxType }
-            ?: throw IllegalArgumentException("Can't find ChannelHandlerContext parameter in function")
-        val packetParameter = parameters.firstOrNull { it.type == packetType }
-            ?: throw IllegalArgumentException("Can't find T (ReceivablePacket) parameter in function")
-        if (parameters.filter { it != ctxParameter && it != packetParameter }
-                .firstOrNull { !it.isOptional } == null) throw IllegalArgumentException("The only non-optional parameters on the function must be the ChannelHandlerContext and T (ReceivablePacket) parameter")
-
-        packetFlow.filterIsInstance<Pair<ChannelHandlerContext, T>>().collect {
-            if (sequential) function.callBy(mapOf(ctxParameter to it.first, packetParameter to it.second))
-            else launch {
-                function.callBy(mapOf(ctxParameter to it.first, packetParameter to it.second))
-            }
-        }
-    }
+    ) = packetBus.addHandler<T>(function)
 
     val packets = hashMapOf<ConnectionState, HashMap<Int, KClass<out ReceivablePacket>>>()
 
@@ -184,7 +167,7 @@ open class PacketDispatcher(val isResponseEnabled: Boolean = true) {
     }
 
     fun getPacketClass(state: ConnectionState, packetIdentifier: Int): KClass<out ReceivablePacket>? =
-        packets[state]?.get(packetIdentifier)
+        packets[state]?.get(packetIdentifier) ?: packets[ConnectionState.ANY]?.get(packetIdentifier)
 
     class PacketHandlerScope : CoroutineScope {
         private val job = Job()

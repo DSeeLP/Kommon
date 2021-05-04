@@ -51,10 +51,6 @@ object KNettyUtils {
                 } else packetDispatcher.callEvent(ClientChannelActiveEvent(ctx), true)
             }
         }
-
-        override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
-            cause.printStackTrace()
-        }
     }
     class DefaultChannelInactiveHandler(val server: Boolean, val packetDispatcher: PacketDispatcher) :
         ChannelInboundHandlerAdapter() {
