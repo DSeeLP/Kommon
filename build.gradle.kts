@@ -1,5 +1,5 @@
 val defaultGroupName = "de.dseelp.kommon"
-val defaultVersion = "0.1.1"
+val defaultVersion = "0.1.2"
 
 group = defaultGroupName
 version = defaultVersion
@@ -8,9 +8,9 @@ plugins {
     base
     java
     `maven-publish`
-    kotlin("jvm") version "1.4.31" apply false
+    kotlin("jvm") version "1.5.0" apply false
     id("com.github.johnrengelman.shadow") version "6.1.0" apply false
-    kotlin("plugin.serialization") version "1.4.30" apply false
+    kotlin("plugin.serialization") version "1.5.0" apply false
 }
 
 allprojects {
@@ -26,7 +26,6 @@ allprojects {
 
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         kotlinOptions.jvmTarget = "1.8"
-        kotlinOptions.useIR = true
         kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 }
