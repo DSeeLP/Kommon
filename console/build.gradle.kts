@@ -7,7 +7,6 @@ val coroutinesVersion: String by project
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    implementation(kotlin("reflect"))
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
 }
 
