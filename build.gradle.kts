@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.konan.properties.hasProperty
-
 val defaultGroupName = "io.github.dseelp"
 val defaultVersion = "0.2"
 
@@ -51,9 +49,10 @@ subprojects {
     val excludedModules = arrayOf("console", "logging")
 
 
-    val isDeployingToCentral = System.getProperties().hasProperty("DEPLOY_CENTRAL")
+    val isDeployingToCentral = System.getProperty("DEPLOY_CENTRAL") == "yes"
 
     if (isDeployingToCentral) println("Deploying to central...")
+    else println("DEBUG: Not deploying to central")
 
     publishing {
         if (excludedModules.contains(this@subprojects.name)) return@publishing
