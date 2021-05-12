@@ -1,5 +1,4 @@
 plugins {
-    `maven-publish`
     kotlin("jvm")
     id("com.github.johnrengelman.shadow")
 }
@@ -9,7 +8,6 @@ val coroutinesVersion: String by project
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
 }
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -28,25 +26,8 @@ tasks {
     }
 }
 
-val sourcesJar by tasks.registering(Jar::class) {
-    classifier = "sources"
-    from(sourceSets.main.get().allSource)
-}
-
 tasks {
     build {
         dependsOn(shadowJar)
-    }
-}
-
-publishing {
-    repositories {
-        mavenLocal()
-    }
-    publications {
-        register("mavenKotlin", MavenPublication::class) {
-            from(components["kotlin"])
-            artifact(sourcesJar.get())
-        }
     }
 }

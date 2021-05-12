@@ -1,2 +1,2 @@
-rootProject.name = "Kommon"
-include("cli", "command", "console", "ev3", "event", "logging", "network", "spigot")
+rootProject.name = "kommon"
+include("command", "console", "event", "logging", "network")
