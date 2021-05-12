@@ -49,7 +49,7 @@ subprojects {
     val excludedModules = arrayOf("console", "logging")
 
 
-    val isDeployingToCentral = System.getProperty("DEPLOY_CENTRAL") == "yes"
+    val isDeployingToCentral = System.getenv().containsKey("DEPLOY_CENTRAL")
 
     if (isDeployingToCentral) println("Deploying to central...")
     else println("DEBUG: Not deploying to central")
@@ -60,8 +60,8 @@ subprojects {
             mavenLocal()
             if (isDeployingToCentral) mavenCentral {
                 credentials {
-                    username = System.getProperty("MAVEN_USERNAME")
-                    password = System.getProperty("MAVEN_PASSWORD")
+                    username = System.getenv("MAVEN_USERNAME")
+                    password = System.getenv("MAVEN_PASSWORD")
                 }
             }
         }
@@ -79,9 +79,9 @@ subprojects {
     signing {
         if (!isDeployingToCentral) return@signing
         useInMemoryPgpKeys(
-            System.getProperty("SIGNING_ID"),
-            System.getProperty("SIGNING_KEY"),
-            System.getProperty("SIGNING_PASSWORD")
+            System.getenv("SIGNING_ID"),
+            System.getenv("SIGNING_KEY"),
+            System.getenv("SIGNING_PASSWORD")
         )
         publishing.publications.onEach {
             sign(it)
