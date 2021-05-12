@@ -39,7 +39,7 @@ jobs:
         
   update_draft_release:
     name: 📝 Update release notes
-    if: github.event_name == 'push'
+    if: github.ref == ‘refs/heads/main’ && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       # Drafts your next Release notes as Pull Requests are merged into "main"
