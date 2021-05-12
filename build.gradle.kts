@@ -79,7 +79,7 @@ subprojects {
     signing {
         if (!isDeployingToCentral) return@signing
         useInMemoryPgpKeys(
-            System.getenv("SIGNING_ID"),
+            //System.getenv("SIGNING_ID"),
             System.getenv("SIGNING_KEY"),
             System.getenv("SIGNING_PASSWORD")
         )
