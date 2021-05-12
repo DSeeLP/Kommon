@@ -53,6 +53,8 @@ subprojects {
 
     val isDeployingToCentral = System.getProperties().hasProperty("DEPLOY_CENTRAL")
 
+    if (isDeployingToCentral) println("Deploying to central...")
+
     publishing {
         if (excludedModules.contains(this@subprojects.name)) return@publishing
         repositories {
