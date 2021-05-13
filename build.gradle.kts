@@ -9,6 +9,7 @@ plugins {
     java
     `maven-publish`
     signing
+    id("org.jetbrains.dokka") version "1.4.32" apply false
     kotlin("jvm") version "1.5.0" apply false
     id("com.github.johnrengelman.shadow") version "6.1.0" apply false
     kotlin("plugin.serialization") version "1.5.0" apply false
@@ -38,6 +39,15 @@ allprojects {
     apply(plugin = "maven-publish")
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "signing")
+    apply(plugin = "org.jetbrains.dokka")
+
+    val dokkaHtml by tasks.getting(org.jetbrains.dokka.gradle.DokkaTask::class)
+
+    val javadocJar: TaskProvider<Jar> by tasks.registering(Jar::class) {
+        dependsOn(dokkaHtml)
+        archiveClassifier.set("javadoc")
+        from(dokkaHtml.outputDirectory)
+    }
 
     val sourcesJar by tasks.registering(Jar::class) {
         archiveClassifier.set("sources")
@@ -60,10 +70,11 @@ allprojects {
         publications {
             register(this@allprojects.name, MavenPublication::class) {
                 from(components["kotlin"])
+                artifact(javadocJar.get())
                 artifact(sourcesJar.get())
 
                 pom {
-                    if (this@allprojects.name == this@allprojects.rootProject.name) url.set("https://github.com/DSeeLP/Kommon")
+                    url.set("https://github.com/DSeeLP/Kommon")
                     val prefix = "pom.${this@allprojects.name}"
                     val pomName = project.property("$prefix.name")
                     val pomDescription = project.property("$prefix.description")
