@@ -14,6 +14,10 @@ plugins {
     kotlin("plugin.serialization") version "1.5.0" apply false
 }
 
+val isDeployingToCentral = System.getenv().containsKey("DEPLOY_CENTRAL")
+
+if (isDeployingToCentral) println("Deploying to central...")
+
 allprojects {
 
 
@@ -31,11 +35,6 @@ allprojects {
         kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 
-
-}
-
-subprojects {
-
     apply(plugin = "maven-publish")
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "signing")
@@ -48,29 +47,47 @@ subprojects {
 
     val excludedModules = arrayOf("console", "logging")
 
-
-    val isDeployingToCentral = System.getenv().containsKey("DEPLOY_CENTRAL")
-
-    if (isDeployingToCentral) println("Deploying to central...")
-    else println("DEBUG: Not deploying to central")
-
     publishing {
-        if (excludedModules.contains(this@subprojects.name)) return@publishing
+        if (excludedModules.contains(this@allprojects.name)) return@publishing
         repositories {
             if (isDeployingToCentral) mavenCentral {
                 credentials {
                     username = System.getenv("MAVEN_USERNAME")
                     password = System.getenv("MAVEN_PASSWORD")
                 }
-            }
+            } else mavenLocal()
         }
         publications {
-            register(this@subprojects.name + "J", MavenPublication::class) {
-                from(components["java"])
-            }
-            register(this@subprojects.name + "K", MavenPublication::class) {
+            register(this@allprojects.name, MavenPublication::class) {
                 from(components["kotlin"])
                 artifact(sourcesJar.get())
+
+                pom {
+                    if (this@allprojects.name == this@allprojects.rootProject.name) url.set("https://github.com/DSeeLP/Kommon")
+                    val prefix = "pom.${this@allprojects.name}"
+                    val pomName = project.property("$prefix.name")
+                    val pomDescription = project.property("$prefix.description")
+                    name.set(pomName as String)
+                    description.set(pomDescription as String)
+                    developers {
+                        developer {
+                            name.set("DSeeLP")
+                            organization.set("com.github.dseelp")
+                            organizationUrl.set("https://www.github.com/DSeeLP")
+                        }
+                    }
+                    licenses {
+                        license {
+                            name.set("MIT LICENSE")
+                            url.set("https://www.opensource.org/licenses/mit-license.php")
+                        }
+                    }
+                    scm {
+                        connection.set("scm:git:git://github.com/DSeeLP/Kommon.git")
+                        developerConnection.set("scm:git:git://github.com/DSeeLP/Kommon.git")
+                        url.set("https://github.com/DSeeLP/Kommon/")
+                    }
+                }
             }
         }
     }
@@ -86,6 +103,8 @@ subprojects {
             sign(it)
         }
     }
+
+
 }
 
 dependencies {
