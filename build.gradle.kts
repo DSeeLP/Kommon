@@ -57,8 +57,7 @@ subprojects {
     publishing {
         if (excludedModules.contains(this@subprojects.name)) return@publishing
         repositories {
-            mavenLocal()
-            if (isDeployingToCentral) maven(url = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/") {
+            if (isDeployingToCentral) mavenCentral {
                 credentials {
                     username = System.getenv("MAVEN_USERNAME")
                     password = System.getenv("MAVEN_PASSWORD")
