@@ -9,16 +9,16 @@ import java.util.*
 class CommandDispatcher<S : Any> {
     private val nodes = mutableListOf<CommandNode<S>>()
 
-    fun register(node: CommandNode<S>) {
+    fun register(node: CommandNode<out S>) {
         if (node.name == null) throw IllegalArgumentException("The root node must have a name!")
-        nodes.add(node)
+        nodes.add(node as CommandNode<S>)
     }
 
-    fun register(name: String, block: CommandBuilder<S>.() -> Unit) {
+    fun register(name: String, block: CommandBuilder<out S>.() -> Unit) {
         register(literal(name, block))
     }
 
-    fun register(builder: JavaCommandBuilder<S>) {
+    fun register(builder: JavaCommandBuilder<out S>) {
         register(builder.build())
     }
 
