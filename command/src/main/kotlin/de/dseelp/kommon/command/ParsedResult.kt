@@ -14,7 +14,7 @@ data class ParsedResult<S: Any>(
         USAGE,
     }
 
-    fun execute(sender: S, bypassAccess: Boolean = false) {
+    fun execute(bypassAccess: Boolean = false) {
         if (node == null) return
         val context = context.copy(parameters = node.parameters).apply { this.sender = sender }
         if (!node.checkAccess.invoke(context) && !bypassAccess) {

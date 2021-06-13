@@ -69,7 +69,7 @@ class CommandDispatcher<S : Any> {
                     )
             }
             val idArg = child.argumentIdentifier
-            val value = idArg?.get(currentArg) ?: continue
+            val value = idArg?.get(currentResult.context, currentArg) ?: continue
             //val shortend = (endArgs.toList()-endArgs[0]).toTypedArray()
             return recursiveParse(
                 child.target ?: child,
@@ -94,7 +94,7 @@ class CommandDispatcher<S : Any> {
     private fun copy(result: ParsedResult<S>, parseArgs: Map<String, ParsedArgument<*>>) =
         result.copy(context = result.context.copy(args = result.context.args + parseArgs))
 
-    fun parse(command: String): ParsedResult<S>? {
+    fun parse(sender: S, command: String): ParsedResult<S>? {
         val splitted = parseRaw(command)
         if (splitted.isEmpty()) {
             return null
@@ -107,11 +107,11 @@ class CommandDispatcher<S : Any> {
             if (splitted.size == 1) arrayOf() else splitted.copyOfRange(1, splitted.size),
             ParsedResult(
                 node,
-                CommandContext(
+                CommandContext<S>(
                     mapOf(),
                     mapOf(),
                     mapOf()
-                ), failed = false
+                ).apply { sender }, failed = false
             )
         )
     }
