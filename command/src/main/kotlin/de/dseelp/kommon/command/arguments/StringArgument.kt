@@ -10,7 +10,7 @@ class StringArgument<S : Any> @JvmOverloads constructor(
     val completer: CommandContext<S>.() -> Array<String> = { arrayOf() }
 ) : Argument<S, String>(name) {
 
-    override fun get(value: String): String = value
+    override fun get(context: CommandContext<S>, value: String): String = value
     override fun getErrorMessage(): String = "This should not happen!"
     override fun complete(context: CommandContext<S>, value: String): Array<String> =
         completer.invoke(context).filterPossibleMatches(value)

@@ -1,5 +1,6 @@
 package de.dseelp.kommon.command
 
+import de.dseelp.kommon.command.arguments.Argument
 import de.dseelp.kommon.command.arguments.ParsedArgument
 import java.util.*
 
@@ -24,6 +25,10 @@ class CommandDispatcher<S : Any> {
 
     fun unregister(name: String) {
         val node = getNode(name) ?: return
+        nodes.remove(node)
+    }
+
+    fun unregister(node: CommandNode<out S>) {
         nodes.remove(node)
     }
 
@@ -52,6 +57,7 @@ class CommandDispatcher<S : Any> {
 
         //val child = getNode(currentArg, true, parent)
         //child?.let { return recursiveParse(it as CommandNode<T>, copiedArgs, currentResult) }
+        var lastArg: Argument<S, *>? = null
         for (child in parent.childs) {
             val endArgs = copiedArgs
             if (child.name?.equals(currentArg, child.ignoreCase) == true)
@@ -69,7 +75,11 @@ class CommandDispatcher<S : Any> {
                     )
             }
             val idArg = child.argumentIdentifier
-            val value = idArg?.get(currentArg) ?: continue
+            val value = idArg?.get(currentResult.context, currentArg)
+            if (value == null) {
+                lastArg = value
+                continue
+            }
             //val shortend = (endArgs.toList()-endArgs[0]).toTypedArray()
             return recursiveParse(
                 child.target ?: child,
@@ -84,7 +94,11 @@ class CommandDispatcher<S : Any> {
         val parseArgs = parseArgs(parent, args)
         if (parseArgs.ok && parseArgs.noArg && parent.arguments.isNotEmpty()) return currentResult.copy(node = parent)
         if (parent.executor != null) return currentResult.copy(node = parent)
-        return currentResult.copy(failed = true, cause = ParsedResult.FailureCause.USAGE)
+        return currentResult.copy(
+            failed = true,
+            cause = ParsedResult.FailureCause.USAGE,
+            errorMessage = lastArg?.getErrorMessage()
+        )
     }
 
 
@@ -94,7 +108,7 @@ class CommandDispatcher<S : Any> {
     private fun copy(result: ParsedResult<S>, parseArgs: Map<String, ParsedArgument<*>>) =
         result.copy(context = result.context.copy(args = result.context.args + parseArgs))
 
-    fun parse(command: String): ParsedResult<S>? {
+    fun parse(sender: S, command: String): ParsedResult<S>? {
         val splitted = parseRaw(command)
         if (splitted.isEmpty()) {
             return null
@@ -110,7 +124,8 @@ class CommandDispatcher<S : Any> {
                 CommandContext(
                     mapOf(),
                     mapOf(),
-                    mapOf()
+                    mapOf(),
+                    sender
                 ), failed = false
             )
         )
@@ -228,7 +243,7 @@ class CommandDispatcher<S : Any> {
         val name = raw[0]
         val node = getNode(name, useAliases = true) ?: return arrayOf()
         val args = if (raw.size == 1) arrayOf() else raw.copyOfRange(1, raw.size)
-        return recursiveComplete(node, CommandContext<S>(mapOf(), mapOf(), mapOf()).apply { this.sender = sender }, args)
+        return recursiveComplete(node, CommandContext(mapOf(), mapOf(), mapOf(), sender), args)
     }
 
     private fun recursiveComplete(

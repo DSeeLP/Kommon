@@ -10,10 +10,9 @@ import kotlin.reflect.full.declaredMemberFunctions
 data class CommandContext<S : Any>(
     val args: Map<String, ParsedArgument<*>>,
     val parameters: Map<String, Any>,
-    val mappers: Map<String, CommandContext<S>.(input: Any) -> Any?>
+    val mappers: Map<String, CommandContext<S>.(input: Any) -> Any?>,
+    val sender: S
 ) {
-    lateinit var sender: S
-        internal set
 
     val mappedArgs: Map<String, ParsedArgument<*>> =
         args.filter { mappers.containsKey(it.key) }

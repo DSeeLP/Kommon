@@ -1,5 +1,5 @@
 val defaultGroupName = "io.github.dseelp.kommon"
-val defaultVersion = "0.2.3"
+val defaultVersion = "0.3.0"
 
 group = defaultGroupName
 version = defaultVersion
