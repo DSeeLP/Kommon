@@ -27,6 +27,10 @@ class CommandDispatcher<S : Any> {
         nodes.remove(node)
     }
 
+    fun unregister(node: CommandNode<out S>) {
+        nodes.remove(node)
+    }
+
     fun getNode(name: String, useAliases: Boolean = false): CommandNode<S>? {
         val lowercaseName = name.lowercase(Locale.getDefault())
         for (node in nodes) {
@@ -52,6 +56,7 @@ class CommandDispatcher<S : Any> {
 
         //val child = getNode(currentArg, true, parent)
         //child?.let { return recursiveParse(it as CommandNode<T>, copiedArgs, currentResult) }
+        var lastArg: Argument<S, *>? = null
         for (child in parent.childs) {
             val endArgs = copiedArgs
             if (child.name?.equals(currentArg, child.ignoreCase) == true)
@@ -107,11 +112,12 @@ class CommandDispatcher<S : Any> {
             if (splitted.size == 1) arrayOf() else splitted.copyOfRange(1, splitted.size),
             ParsedResult(
                 node,
-                CommandContext<S>(
+                CommandContext(
                     mapOf(),
                     mapOf(),
-                    mapOf()
-                ).apply { sender }, failed = false
+                    mapOf(),
+                    sender
+                ), failed = false
             )
         )
     }
@@ -228,7 +234,7 @@ class CommandDispatcher<S : Any> {
         val name = raw[0]
         val node = getNode(name, useAliases = true) ?: return arrayOf()
         val args = if (raw.size == 1) arrayOf() else raw.copyOfRange(1, raw.size)
-        return recursiveComplete(node, CommandContext<S>(mapOf(), mapOf(), mapOf()).apply { this.sender = sender }, args)
+        return recursiveComplete(node, CommandContext(mapOf(), mapOf(), mapOf(), sender), args)
     }
 
     private fun recursiveComplete(
