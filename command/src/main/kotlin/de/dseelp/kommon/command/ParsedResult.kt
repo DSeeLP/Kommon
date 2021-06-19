@@ -8,20 +8,25 @@ data class ParsedResult<S: Any>(
     val context: CommandContext<S>,
     val node: CommandNode<S>? = null,
     val failed: Boolean,
-    val cause: FailureCause? = null
+    val cause: FailureCause? = null,
+    val errorMessage: String? = null
 ) {
     enum class FailureCause {
         USAGE,
     }
 
-    fun execute(bypassAccess: Boolean = false) {
-        if (node == null) return
-        val context = context.copy(parameters = node.parameters).apply { this.sender = sender }
+    fun execute(bypassAccess: Boolean = false): Throwable? {
+        if (node == null) return null
+        val context = context.copy(parameters = node.parameters)
         if (!node.checkAccess.invoke(context) && !bypassAccess) {
-            (if (root === node) root.noAccess ?: {} else node.noAccess ?: (root.noAccess ?: {})).invoke(context, node)
-            return
+            return runCatching {
+                (if (root === node) root.noAccess ?: {} else node!!.noAccess ?: (root.noAccess ?: {})).invoke(
+                    context,
+                    node
+                )
+            }.exceptionOrNull()?.cause
         }
-        node.executor?.invoke(context)
+        return runCatching { node!!.executor?.invoke(context) }.exceptionOrNull()?.cause
     }
 }
 

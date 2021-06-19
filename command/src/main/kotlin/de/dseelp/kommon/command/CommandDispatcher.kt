@@ -1,5 +1,6 @@
 package de.dseelp.kommon.command
 
+import de.dseelp.kommon.command.arguments.Argument
 import de.dseelp.kommon.command.arguments.ParsedArgument
 import java.util.*
 
@@ -74,7 +75,11 @@ class CommandDispatcher<S : Any> {
                     )
             }
             val idArg = child.argumentIdentifier
-            val value = idArg?.get(currentResult.context, currentArg) ?: continue
+            val value = idArg?.get(currentResult.context, currentArg)
+            if (value == null) {
+                lastArg = value
+                continue
+            }
             //val shortend = (endArgs.toList()-endArgs[0]).toTypedArray()
             return recursiveParse(
                 child.target ?: child,
@@ -89,7 +94,11 @@ class CommandDispatcher<S : Any> {
         val parseArgs = parseArgs(parent, args)
         if (parseArgs.ok && parseArgs.noArg && parent.arguments.isNotEmpty()) return currentResult.copy(node = parent)
         if (parent.executor != null) return currentResult.copy(node = parent)
-        return currentResult.copy(failed = true, cause = ParsedResult.FailureCause.USAGE)
+        return currentResult.copy(
+            failed = true,
+            cause = ParsedResult.FailureCause.USAGE,
+            errorMessage = lastArg?.getErrorMessage()
+        )
     }
 
 
