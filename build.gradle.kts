@@ -1,8 +1,8 @@
 val defaultGroupName = "io.github.dseelp.kommon"
-val defaultVersion = "0.3.0"
+val projectVersion: String by project
 
 group = defaultGroupName
-version = defaultVersion
+version = projectVersion
 
 plugins {
     base
@@ -18,13 +18,11 @@ plugins {
 val isDeployingToCentral = System.getenv().containsKey("DEPLOY_CENTRAL")
 
 if (isDeployingToCentral) println("Deploying to central...")
+val excludedModules = arrayOf("console", "logging")
 
 allprojects {
-
-
     group = defaultGroupName
-
-    version = defaultVersion
+    version = projectVersion
 
     repositories {
         mavenCentral()
@@ -53,9 +51,6 @@ allprojects {
         archiveClassifier.set("sources")
         from(sourceSets.main.get().allSource)
     }
-
-
-    val excludedModules = arrayOf("console", "logging")
 
     publishing {
         if (excludedModules.contains(this@allprojects.name)) return@publishing
