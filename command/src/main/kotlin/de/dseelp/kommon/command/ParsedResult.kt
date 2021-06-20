@@ -18,7 +18,12 @@ data class ParsedResult<S: Any>(
     fun execute(bypassAccess: Boolean = false): Throwable? {
         if (node == null) return null
         val context = context.copy(parameters = node.parameters)
-        if (!node.checkAccess.invoke(context) && !bypassAccess) {
+        val rootAccess = root.checkAccess.invoke(context)
+        val nodeAccess = node.checkAccess.invoke(context)
+        val access = if (nodeAccess) {
+            rootAccess
+        }else false
+        if (!access && !bypassAccess) {
             return runCatching {
                 (if (root === node) root.noAccess ?: {} else node!!.noAccess ?: (root.noAccess ?: {})).invoke(
                     context,
