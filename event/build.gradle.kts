@@ -30,7 +30,3 @@ tasks {
         dependsOn(shadowJar)
     }
 }
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions {
-    languageVersion = "1.4"
-}
