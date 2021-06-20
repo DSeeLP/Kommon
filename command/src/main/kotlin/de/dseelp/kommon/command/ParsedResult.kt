@@ -10,9 +10,9 @@ data class ParsedResult<S : Any>(
     val failed: Boolean,
     val cause: FailureCause? = null,
     val errorMessage: String? = null,
-    val defaultCheckAccess: ParsedResult<S>.() -> Boolean = {
-        val rootAccess = root.checkAccess.invoke(context)
-        val nodeAccess = node?.checkAccess?.invoke(context) ?: false
+    val defaultCheckAccess: (result: ParsedResult<S>) -> Boolean = { result ->
+        val rootAccess = result.root.checkAccess.invoke(context)
+        val nodeAccess = result.node?.checkAccess?.invoke(context) ?: false
         if (nodeAccess) {
             rootAccess
         } else false
