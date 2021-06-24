@@ -33,9 +33,9 @@ data class ParsedResult<S : Any>(
                     context,
                     node
                 )
-            }.exceptionOrNull()?.cause
+            }.exceptionOrNull()
         }
-        return runCatching { node!!.executor?.invoke(context) }.exceptionOrNull()?.cause
+        return runCatching { node!!.executor?.invoke(context) }.exceptionOrNull()
     }
 
     fun execute(bypassAccess: Boolean = false) = if (bypassAccess) execute { true } else execute(defaultCheckAccess)
