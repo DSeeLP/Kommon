@@ -17,7 +17,7 @@ data class CommandNode<S: Any>(
     val checkAccess: (suspend CommandContext<S>.() -> Boolean) = { true },
     val noAccess: (suspend CommandContext<S>.(node: CommandNode<S>) -> Unit)?,
     val parameters: Map<String, Any> = mapOf(),
-    val mappers: Map<String, CommandContext<S>.(input: Any) -> Any?> = mapOf()
+    val mappers: Map<String, suspend CommandContext<S>.(input: Any) -> Any?> = mapOf()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

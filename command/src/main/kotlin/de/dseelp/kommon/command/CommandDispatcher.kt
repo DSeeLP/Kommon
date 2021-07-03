@@ -104,7 +104,7 @@ class CommandDispatcher<S : Any> {
     }
 
 
-    private fun CommandContext<S>.updateContext(mappers: Map<String, CommandContext<S>.(input: Any) -> Any?>) =
+    private fun CommandContext<S>.updateContext(mappers: Map<String, suspend CommandContext<S>.(input: Any) -> Any?>) =
         this.copy(mappers = this.mappers + mappers)
 
     private fun copy(result: ParsedResult<S>, parseArgs: Map<String, ParsedArgument<*>>) =
