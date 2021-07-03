@@ -2,6 +2,7 @@ package de.dseelp.kommon.command
 
 import de.dseelp.kommon.command.arguments.Argument
 import de.dseelp.kommon.command.arguments.ParsedArgument
+import kotlinx.coroutines.runBlocking
 import java.util.*
 
 /**
@@ -12,6 +13,7 @@ class CommandDispatcher<S : Any> {
 
     fun register(node: CommandNode<out S>) {
         if (node.name == null) throw IllegalArgumentException("The root node must have a name!")
+        @Suppress("UNCHECKED_CAST")
         nodes.add(node as CommandNode<S>)
     }
 
@@ -45,7 +47,7 @@ class CommandDispatcher<S : Any> {
         return null
     }
 
-    private fun recursiveParse(
+    private suspend fun recursiveParse(
         parent: CommandNode<S>,
         args: Array<String>,
         currentResult: ParsedResult<S>
@@ -91,7 +93,7 @@ class CommandDispatcher<S : Any> {
                 }
             )
         }
-        val parseArgs = parseArgs(parent, args)
+        val parseArgs = parseArgs(parent, args, currentResult)
         if (parseArgs.ok && parseArgs.noArg && parent.arguments.isNotEmpty()) return currentResult.copy(node = parent)
         if (parent.executor != null) return currentResult.copy(node = parent)
         return currentResult.copy(
@@ -108,7 +110,9 @@ class CommandDispatcher<S : Any> {
     private fun copy(result: ParsedResult<S>, parseArgs: Map<String, ParsedArgument<*>>) =
         result.copy(context = result.context.copy(args = result.context.args + parseArgs))
 
-    fun parse(sender: S, command: String): ParsedResult<S>? {
+    fun parseBlocking(sender: S, command: String) = runBlocking { parse(sender, command) }
+
+    suspend fun parse(sender: S, command: String): ParsedResult<S>? {
         val splitted = parseRaw(command)
         if (splitted.isEmpty()) {
             return null
@@ -162,9 +166,10 @@ class CommandDispatcher<S : Any> {
         }
     }
 
-    private fun <T : Any> parseArgs(
-        node: CommandNode<T>,
-        args: Array<String>
+    private suspend fun parseArgs(
+        node: CommandNode<S>,
+        args: Array<String>,
+        currentResult: ParsedResult<S>
     ): ParseArgsResult {
         val parsed = mutableListOf<ParsedArgument<*>>()
         val nArgs = node.arguments
@@ -174,7 +179,7 @@ class CommandDispatcher<S : Any> {
             val s = args[index]
             if (nArgs.size <= index) break
             val arg = nArgs[index]
-            val value = arg.get(s)
+            val value = arg.get(currentResult.context, s)
             if (value != null) {
                 usedIndex = index
                 parsed.add(ParsedArgument(arg.name, false, value))
@@ -235,7 +240,7 @@ class CommandDispatcher<S : Any> {
     }
 
 
-    fun complete(sender: S, command: String): Array<String> {
+    suspend fun complete(sender: S, command: String): Array<String> {
         val raw = parseRaw(command)
         if (raw.isEmpty()) {
             return arrayOf()
@@ -246,7 +251,9 @@ class CommandDispatcher<S : Any> {
         return recursiveComplete(node, CommandContext(mapOf(), mapOf(), mapOf(), sender), args)
     }
 
-    private fun recursiveComplete(
+    fun completeBlocking(sender: S, command: String) = runBlocking { complete(sender, command) }
+
+    private suspend fun recursiveComplete(
         node: CommandNode<S>,
         context: CommandContext<S>,
         args: Array<String>
@@ -260,7 +267,7 @@ class CommandDispatcher<S : Any> {
                 }
                 if (args[args.lastIndex] != "") continue
                 val idArg = child.argumentIdentifier
-                val value = idArg?.get(current) ?: continue
+                val value = idArg?.get(context, current) ?: continue
                 return recursiveComplete(
                     child,
                     context.copy(context.args.plus(idArg.name to ParsedArgument(idArg.name, false, value))),

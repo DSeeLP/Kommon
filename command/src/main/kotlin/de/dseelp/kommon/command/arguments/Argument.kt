@@ -6,12 +6,7 @@ import de.dseelp.kommon.command.CommandContext
  * @author DSeeLP
  */
 abstract class Argument<S : Any, T: Any>(val name: String) {
-    @Deprecated(
-        "This is deprecated in favor of get(context, value) and will later be removed",
-        level = DeprecationLevel.WARNING
-    )
-    open fun get(value: String): T? = null
-    open fun get(context: CommandContext<S>, value: String): T? = get(value)
+    abstract suspend fun get(context: CommandContext<S>, value: String): T?
     abstract fun complete(context: CommandContext<S>, value: String): Array<String>
     open fun getErrorMessage(): String = "The string %s does not match the argument"
 

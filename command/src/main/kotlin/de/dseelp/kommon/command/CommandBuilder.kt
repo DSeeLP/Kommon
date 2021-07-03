@@ -11,8 +11,8 @@ class CommandBuilder<S: Any>(
     val aliases: Array<String> = arrayOf(),
 ) {
 
-    constructor(name: String, aliases: Array<String>): this(name, null, aliases)
-    constructor(argument: Argument<S, *>): this(name = null, argument = argument)
+    constructor(name: String, aliases: Array<String>) : this(name, null, aliases)
+    constructor(argument: Argument<S, *>) : this(name = null, argument = argument)
 
     var target: CommandNode<S>? = null
         private set
@@ -21,21 +21,21 @@ class CommandBuilder<S: Any>(
     var childs: Array<CommandNode<S>> = arrayOf()
         private set
 
-    private var executeBlock: (CommandContext<S>.() -> Unit)? = null
-    private var noAccessBlock: (CommandContext<S>.(node: CommandNode<S>) -> Unit)? = null
-    private var checkAccessBlock: (CommandContext<S>.() -> Boolean) = { true }
+    private var executeBlock: (suspend CommandContext<S>.() -> Unit)? = null
+    private var noAccessBlock: (suspend CommandContext<S>.(node: CommandNode<S>) -> Unit)? = null
+    private var checkAccessBlock: (suspend CommandContext<S>.() -> Boolean) = { true }
 
     private var parameters = mapOf<String, Any>()
 
-    fun noAccess(block: CommandContext<S>.(node: CommandNode<S>) -> Unit) {
+    fun noAccess(block: suspend CommandContext<S>.(node: CommandNode<S>) -> Unit) {
         noAccessBlock = block
     }
 
-    fun checkAccess(block: CommandContext<S>.() -> Boolean) {
+    fun checkAccess(block: suspend CommandContext<S>.() -> Boolean) {
         checkAccessBlock = block
     }
 
-    fun execute(block:  CommandContext<S>.() -> Unit) {
+    fun execute(block: suspend CommandContext<S>.() -> Unit) {
         executeBlock = block
     }
 
