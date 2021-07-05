@@ -11,7 +11,7 @@ class IntArgument<S : Any> @JvmOverloads constructor(
 ) :
     Argument<S, Int>(name) {
 
-    override fun get(context: CommandContext<S>, value: String): Int? = value.toIntOrNull()
+    override suspend fun get(context: CommandContext<S>, value: String): Int? = value.toIntOrNull()
     override fun getErrorMessage(): String = "%s is not an Integer"
     override fun complete(context: CommandContext<S>, value: String): Array<String> =
         completer.invoke(context).map { it.toString() }.filter { value.startsWith(it, true) }.toTypedArray()

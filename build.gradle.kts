@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 val defaultGroupName = "io.github.dseelp.kommon"
 val projectVersion: String by project
 
@@ -27,11 +29,6 @@ allprojects {
     repositories {
         mavenCentral()
         jcenter()
-    }
-
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions.jvmTarget = "1.8"
-        kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 
     apply(plugin = "maven-publish")
@@ -70,11 +67,8 @@ allprojects {
 
                 pom {
                     url.set("https://github.com/DSeeLP/Kommon")
-                    val prefix = "pom.${this@allprojects.name}"
-                    val pomName = project.property("$prefix.name")
-                    val pomDescription = project.property("$prefix.description")
-                    name.set(pomName as String)
-                    description.set(pomDescription as String)
+                    name.set("Kommon")
+                    description.set("Kommon, a simple multipurpose framework written in Kotlin")
                     developers {
                         developer {
                             name.set("DSeeLP")
@@ -109,6 +103,13 @@ allprojects {
             sign(it)
         }
     }
+}
 
-
+subprojects {
+    val compileKotlin: KotlinCompile by tasks
+    compileKotlin.kotlinOptions {
+        languageVersion = "1.5"
+        jvmTarget = "1.8"
+        freeCompilerArgs = freeCompilerArgs + "-Xopt-in=kotlin.RequiresOptIn"
+    }
 }

@@ -12,12 +12,12 @@ data class CommandNode<S: Any>(
     val target: CommandNode<S>? = null,
     val arguments: Array<Argument<S, *>> = arrayOf(),
     val childs: Array<CommandNode<S>> = arrayOf(),
-    val executor: (CommandContext<S>.() -> Unit)?,
+    val executor: (suspend CommandContext<S>.() -> Unit)?,
     val ignoreCase: Boolean = true,
-    val checkAccess: (CommandContext<S>.() -> Boolean) = { true },
-    val noAccess: (CommandContext<S>.(node: CommandNode<S>) -> Unit)?,
+    val checkAccess: (suspend CommandContext<S>.() -> Boolean) = { true },
+    val noAccess: (suspend CommandContext<S>.(node: CommandNode<S>) -> Unit)?,
     val parameters: Map<String, Any> = mapOf(),
-    val mappers: Map<String, CommandContext<S>.(input: Any) -> Any?> = mapOf()
+    val mappers: Map<String, suspend CommandContext<S>.(input: Any) -> Any?> = mapOf()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

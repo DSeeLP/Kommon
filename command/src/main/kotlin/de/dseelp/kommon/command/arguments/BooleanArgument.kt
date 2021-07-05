@@ -10,7 +10,7 @@ class BooleanArgument<S : Any> @JvmOverloads constructor(
     trueString: String = "true",
     falseString: String = "false"
 ) : Argument<S, Boolean>(name) {
-    override fun get(context: CommandContext<S>, value: String): Boolean? = value.toBooleanOrNull()
+    override suspend fun get(context: CommandContext<S>, value: String): Boolean? = value.toBooleanOrNull()
     override fun getErrorMessage(): String = "%s is not a boolean"
     private val possibleValues = arrayOf(trueString, falseString)
     override fun complete(context: CommandContext<S>, value: String): Array<String> =

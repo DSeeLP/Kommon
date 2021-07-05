@@ -1,6 +1,7 @@
 package de.dseelp.kommon.command
 
 import de.dseelp.kommon.command.arguments.ParsedArgument
+import kotlinx.coroutines.runBlocking
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.declaredMemberFunctions
 
@@ -10,25 +11,33 @@ import kotlin.reflect.full.declaredMemberFunctions
 data class CommandContext<S : Any>(
     val args: Map<String, ParsedArgument<*>>,
     val parameters: Map<String, Any>,
-    val mappers: Map<String, CommandContext<S>.(input: Any) -> Any?>,
+    val mappers: Map<String, suspend CommandContext<S>.(input: Any) -> Any?>,
     val sender: S
 ) {
 
-    val mappedArgs: Map<String, ParsedArgument<*>> =
+    val mappedArgs: Map<String, ParsedArgument<*>> = runBlocking {
         args.filter { mappers.containsKey(it.key) }
             .map {
-                val newValue = it.value.value.let { value -> if (value == null) null else mappers[it.key]!!.invoke(this, value) }
+                val newValue = it.value.value.let { value ->
+                    if (value == null) null else mappers[it.key]!!.invoke(
+                        this@CommandContext,
+                        value
+                    )
+                }
                 it.key to it.value.copyParsed(newValue)
             }.toMap()
+    }
+
 
     private fun ParsedArgument<*>.copyParsed(newValue: Any?): ParsedArgument<*> {
         for (current in this::class.declaredMemberFunctions) {
             if (current.visibility != KVisibility.PUBLIC) continue
             if (current.name != "copy") continue
             val parameters = current.parameters.toTypedArray()
-            return current.callBy(mapOf(
-                parameters[0] to this,
-                parameters[3] to newValue
+            return current.callBy(
+                mapOf(
+                    parameters[0] to this,
+                    parameters[3] to newValue
             )) as ParsedArgument<*>
         }
         return this
