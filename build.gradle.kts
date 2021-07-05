@@ -67,11 +67,8 @@ allprojects {
 
                 pom {
                     url.set("https://github.com/DSeeLP/Kommon")
-                    val prefix = "pom.${this@allprojects.name}"
-                    val pomName = project.property("$prefix.name")
-                    val pomDescription = project.property("$prefix.description")
-                    name.set(pomName as String)
-                    description.set(pomDescription as String)
+                    name.set("Kommon")
+                    description.set("Kommon, a simple multipurpose framework written in Kotlin")
                     developers {
                         developer {
                             name.set("DSeeLP")
