@@ -61,6 +61,7 @@ class CommandDispatcher<S : Any> {
         //child?.let { return recursiveParse(it as CommandNode<T>, copiedArgs, currentResult) }
         var lastArg: Argument<S, *>? = null
         for (child in parent.childs) {
+            if (!child.checkSender(currentResult.context)) continue
             val endArgs = copiedArgs
             if (child.name?.equals(currentArg, child.ignoreCase) == true)
                 return recursiveParse(
@@ -119,18 +120,19 @@ class CommandDispatcher<S : Any> {
         }
         val name = splitted[0]
         val node = getNode(name, useAliases = true) ?: return null
+        val context = CommandContext(
+            mapOf(),
+            mapOf(),
+            mapOf(),
+            sender
+        )
+        if (!node.checkSender(context)) return null
         @Suppress("UNCHECKED_CAST")
         return recursiveParse(
             node,
             if (splitted.size == 1) arrayOf() else splitted.copyOfRange(1, splitted.size),
             ParsedResult(
-                node,
-                CommandContext(
-                    mapOf(),
-                    mapOf(),
-                    mapOf(),
-                    sender
-                ), failed = false
+                node, context, failed = false
             )
         )
     }
@@ -282,7 +284,8 @@ class CommandDispatcher<S : Any> {
                 .mapNotNull { it.argumentIdentifier }
                 .map { it.complete(context, current) }
                 .forEach { strings.addAll(it) }
-            node.childs.filter { it.checkAccess.invoke(context) }.filter { it.argumentIdentifier == null }.forEach { strings.addAll(it.aliases + it.name!!) }
+            node.childs.filter { it.checkAccess.invoke(context) }.filter { it.argumentIdentifier == null }
+                .forEach { strings.addAll(it.aliases + it.name!!) }
             return strings.toTypedArray()
         }
         return arrayOf()
