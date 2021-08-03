@@ -11,10 +11,10 @@ plugins {
     java
     `maven-publish`
     signing
-    id("org.jetbrains.dokka") version "1.4.32" apply false
-    kotlin("jvm") version "1.5.20" apply false
+    id("org.jetbrains.dokka") version "1.5.0" apply false
+    kotlin("jvm") version "1.5.21" apply false
     id("com.github.johnrengelman.shadow") version "6.1.0" apply false
-    kotlin("plugin.serialization") version "1.5.20" apply false
+    kotlin("plugin.serialization") version "1.5.21" apply false
 }
 
 val isDeployingToCentral = System.getenv().containsKey("DEPLOY_CENTRAL")
