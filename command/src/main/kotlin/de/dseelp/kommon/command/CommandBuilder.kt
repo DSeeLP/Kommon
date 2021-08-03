@@ -21,6 +21,8 @@ class CommandBuilder<S: Any>(
     var childs: Array<CommandNode<S>> = arrayOf()
         private set
 
+    var checkSender: (suspend CommandContext<S>.() -> Boolean) = { true }
+
     private var executeBlock: (suspend CommandContext<S>.() -> Unit)? = null
     private var noAccessBlock: (suspend CommandContext<S>.(node: CommandNode<S>) -> Unit)? = null
     private var checkAccessBlock: (suspend CommandContext<S>.() -> Boolean) = { true }
@@ -37,6 +39,16 @@ class CommandBuilder<S: Any>(
 
     fun execute(block: suspend CommandContext<S>.() -> Unit) {
         executeBlock = block
+    }
+
+    fun checkSender(block: suspend CommandContext<S>.() -> Boolean) {
+        checkSender = block
+    }
+
+    inline fun <reified S> checkSender() {
+        checkSender {
+            sender is S
+        }
     }
 
     fun forward(node: CommandNode<S>) {
@@ -70,7 +82,20 @@ class CommandBuilder<S: Any>(
         if (name == null && argument == null) throw IllegalStateException("An command node must have a name or an argument!")
         if (target != null && childs.isNotEmpty()) throw IllegalStateException("Cannot forward a node with children")
         if (target != null && arguments.isNotEmpty()) throw IllegalStateException("Cannot forward a node with arguments")
-        return CommandNode(name, aliases, argument, target, arrayOf(), childs, executeBlock, checkAccess = checkAccessBlock, noAccess = noAccessBlock, parameters = parameters, mappers = mappers)
+        return CommandNode(
+            name,
+            aliases,
+            argument,
+            target,
+            arrayOf(),
+            childs,
+            executeBlock,
+            checkAccess = checkAccessBlock,
+            noAccess = noAccessBlock,
+            parameters = parameters,
+            mappers = mappers,
+            checkSender = checkSender
+        )
     }
 
     operator fun invoke(block: CommandBuilder<S>.() -> Unit) {
