@@ -215,22 +215,22 @@ class CommandDispatcher<S : Any> {
         var inS = false
         var raw = ""
         for (s in rawSplitted) {
-            if (!inS && s.startsWith('\'')) {
-                if (s == "''") continue
+            if (!inS && s.startsWith('"') && !s.startsWith("\\\"")) {
+                if (s == "\"\"") continue
                 inS = true
-                raw = if (s == "' ") " "
-                else "${s.replaceFirst("'", "")} "
+                raw = if (s == "\" ") " "
+                else "${s.replaceFirst("\"", "")} "
                 continue
             }
             if (inS) {
-                if (s.endsWith('\'')) {
+                if (s.endsWith('"') && !s.endsWith("\\\"")) {
                     inS = false
                     if (s.length in 1..1) {
                         raw += " "
                     } else if (s.length > 1) {
                         raw += s.substring(0 until s.lastIndex)
                     }
-                    splitted.add(raw)
+                    splitted.add(raw.replace("\\\"", "\""))
                     raw = ""
                     continue
                 }
